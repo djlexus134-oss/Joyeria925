@@ -1,0 +1,15 @@
+{
+  "name": "joyeria-print-agent",
+  "version": "1.1.0",
+  "description": "Agente local Windows para imprimir tickets ESC/POS desde Joyeria POS",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.9.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

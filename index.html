@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Platería El Ángel | Elegancia en Plata</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="logo">
+            <h1>Platería El Ángel</h1>
+            <p>Artesanía y elegancia en plata</p>
+        </div>
+
+        <nav class="nav">
+            <ul>
+                <li><a href="#">Catálogo</a></li>
+                <li><a href="#">Promociones</a></li>
+                <li><a href="#">Contacto</a></li>
+            </ul>
+        </nav>
+
+        <div class="header-icons">
+            <a href="#" class="icon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <line x1="16.65" y1="16.65" x2="21" y2="21"></line>
+                </svg>
+            </a>
+            <div class="tienda-header-wrap d-flex align-items-center gap-2">
+                <div class="tienda-header-session align-items-center gap-2 d-none">
+                    <span class="tienda-header-name text-muted small"></span>
+                    <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 tienda-logout-btn" id="btnTiendaLogout" title="Cerrar sesión">Salir</button>
+                </div>
+                <button type="button" class="icon btn-account border-0 bg-transparent p-0" id="btnTiendaAccount" data-bs-toggle="modal" data-bs-target="#modalTiendaAuth" title="Tu cuenta" aria-label="Iniciar sesión o registrarse">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="8" r="4"></circle>
+                        <path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path>
+                    </svg>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <section class="hero">
+
+        <div id="heroCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+
+                <div class="carousel-item active">
+                    <img src="imagenes/1.jpg" class="d-block w-100" alt="">
+                </div>
+
+                <div class="carousel-item">
+                    <img src="imagenes/2.jpg" class="d-block w-100" alt="">
+                </div>
+
+                <div class="carousel-item">
+                    <img src="imagenes/3.jpg" class="d-block w-100" alt="">
+                </div>
+
+            </div>
+        </div>
+
+        <div class="hero-content">
+            <h2>Brillo que trasciende</h2>
+            <p>Piezas únicas de plata para cada ocasión especial</p>
+            <a href="#" class="btn-primario">Explorar catálogo</a>
+        </div>
+
+    </section>
+
+    <section class="colecciones">
+        <h2>Nuestras colecciones</h2>
+
+        <div class="grid-productos">
+
+            <div class="producto-card">
+                <div class="producto-img">
+                    <img src="imagenes/1.jpg" alt="Anillo de plata">
+                </div>
+                <h3>Anillo de plata</h3>
+                <div class="precio">$999 MXN</div>
+            </div>
+
+            <div class="producto-card">
+                <div class="producto-img">
+                    <img src="imagenes/2.jpg" alt="Cadena elegante">
+                </div>
+                <h3>Cadena elegante</h3>
+                <div class="precio">$1,499 MXN</div>
+            </div>
+
+            <div class="producto-card">
+                <div class="producto-img">
+                    <img src="imagenes/3.jpg" alt="Aretes premium">
+                </div>
+                <h3>Aretes premium</h3>
+                <div class="precio">$799 MXN</div>
+            </div>
+
+            <div class="producto-card">
+                <div class="producto-img">
+                    <img src="imagenes/4.jpg" alt="Pulsera fina">
+                </div>
+                <h3>Pulsera fina</h3>
+                <div class="precio">$1,199 MXN</div>
+            </div>
+
+
+        </div>
+    </section>
+
+    <section class="split-feature">
+
+        <div class="split-content">
+            <h2 class="split-title">
+                Gift it <span class="heart">♥</span><br>
+                Love it <span class="heart">♥</span>
+            </h2>
+
+            <p class="split-description">
+                Descubre piezas diseñadas para celebrar momentos especiales.
+                Regala elegancia, regala significado.
+            </p>
+
+            <a href="#" class="split-link">Ver ideas de regalos</a>
+        </div>
+
+        <div class="split-image">
+            <img src="imagenes/1.jpg" alt="">
+        </div>
+
+    </section>
+    <section class="collections-spotlight">
+
+        <button class="spotlight-btn prev">&#10094;</button>
+
+        <div class="spotlight-track">
+
+            <div class="spotlight-item active">
+                <img src="imagenes/1.jpg" alt="">
+                <span>AURUM SOUL</span>
+            </div>
+
+            <div class="spotlight-item next">
+                <img src="imagenes/2.jpg" alt="">
+                <span>ESSENTIAL COLLECTION</span>
+            </div>
+
+            <div class="spotlight-item">
+                <img src="imagenes/3.jpg" alt="">
+                <span>THE AHAVAH NECKLACE</span>
+            </div>
+
+            <div class="spotlight-item prev">
+                <img src="imagenes/4.jpg" alt="">
+                <span>JOYERÍA DE PERLAS</span>
+            </div>
+
+            <div class="spotlight-item">
+                <img src="imagenes/1.jpg" alt="">
+                <span>THE CHARM COLLECTION</span>
+            </div>
+
+        </div>
+
+        <button class="spotlight-btn next">&#10095;</button>
+
+    </section>
+
+    <section class="colecciones">
+        <h2>Ultimas piezas!</h2>
+
+        <div class="grid-productos">
+
+            <div class="producto-card">
+                <div class="producto-img">
+                    <img src="imagenes/1.jpg" alt="Anillo de plata">
+                </div>
+                <h3>Anillo de plata</h3>
+                <div class="precio">$999 MXN</div>
+            </div>
+
+            <div class="producto-card">
+                <div class="producto-img">
+                    <img src="imagenes/2.jpg" alt="Cadena elegante">
+                </div>
+                <h3>Cadena elegante</h3>
+                <div class="precio">$1,499 MXN</div>
+            </div>
+
+            <div class="producto-card">
+                <div class="producto-img">
+                    <img src="imagenes/3.jpg" alt="Aretes premium">
+                </div>
+                <h3>Aretes premium</h3>
+                <div class="precio">$799 MXN</div>
+            </div>
+
+            <div class="producto-card">
+                <div class="producto-img">
+                    <img src="imagenes/4.jpg" alt="Pulsera fina">
+                </div>
+                <h3>Pulsera fina</h3>
+                <div class="precio">$1,199 MXN</div>
+            </div>
+
+
+        </div>
+    </section>
+
+    <section class="sobre-nosotros">
+        <h2>Tradición y exclusividad</h2>
+        <p>
+            En Platería El Ángel combinamos la tradición joyera con diseños modernos,
+            ofreciendo piezas de plata que reflejan calidad, confianza y distinción.
+        </p>
+    </section>
+    <footer class="footer">
+
+    <div class="footer-container">
+
+        <div class="footer-col">
+            <p class="footer-address">
+                Andador Nicolas Bravo 104, Colonia Centro, 38000 Celaya, Gto.
+            </p>
+
+            <h4>CONTACTO</h4>
+            <a href="mailto:djlexus134@gmail.com" class="footer-link">
+                djlexus134@gmail.com
+            </a>
+
+            <div class="footer-brand">
+                PLATERÍA EL ÁNGEL
+            </div>
+        </div>
+
+        <div class="footer-col">
+            <h4>MAPA DE SITIO</h4>  
+            <ul class="footer-menu">
+                <li><a href="#">Blog</a></li>
+                <li><a href="#">Nuestra Historia</a></li>
+                <li><a href="#">Mayoreo</a></li>
+                <li><a href="#">Promociones y restricciones</a></li>
+            </ul>
+        </div>
+
+        
+    </div>
+</footer>
+    <div class="modal fade" id="modalTiendaAuth" tabindex="-1" aria-labelledby="modalTiendaAuthLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content tienda-auth-modal">
+                <div class="modal-header border-0 pb-0">
+                    <h2 class="modal-title h5 fw-normal" id="modalTiendaAuthLabel">Tu cuenta</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tabTiendaLogin" data-bs-toggle="tab" data-bs-target="#paneTiendaLogin" type="button" role="tab">Iniciar sesión</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tabTiendaRegistro" data-bs-toggle="tab" data-bs-target="#paneTiendaRegistro" type="button" role="tab">Crear cuenta</button>
+                        </li>
+                    </ul>
+                    <div class="tienda-pane-forgot d-none mb-3">
+                        <p class="small text-muted">Te enviamos un enlace para restablecer tu contraseña.</p>
+                        <form id="formTiendaForgot" autocomplete="on">
+                            <div class="mb-3">
+                                <label class="form-label" for="forgot_correo">Correo</label>
+                                <input class="form-control" type="email" id="forgot_correo" name="correo" required autocomplete="email">
+                            </div>
+                            <div class="tienda-auth-banner-forgot alert d-none mb-3" role="alert"></div>
+                            <button class="btn btn-dark w-100 mb-2" type="submit">Enviar enlace</button>
+                            <button class="btn btn-link w-100 p-0 small" type="button" id="btnBackToLogin">Volver al inicio de sesión</button>
+                        </form>
+                    </div>
+                    <div class="tienda-pane-login tab-content">
+                        <div class="tab-pane fade show active" id="paneTiendaLogin" role="tabpanel">
+                            <form id="formTiendaLogin" autocomplete="on">
+                                <div class="mb-3">
+                                    <label class="form-label" for="login_correo">Correo o teléfono</label>
+                                    <input class="form-control" type="text" id="login_correo" name="correo" required autocomplete="username">
+                                    <div class="form-text">También puedes usar tu número de teléfono registrado.</div>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label" for="login_pass">Contraseña</label>
+                                    <input class="form-control" type="password" id="login_pass" name="contrasena" required autocomplete="current-password">
+                                </div>
+                                <button class="btn btn-link p-0 small mb-3" type="button" id="btnShowForgot">¿Olvidaste tu contraseña?</button>
+                                <div class="tienda-auth-banner-login alert d-none mb-3" role="alert"></div>
+                                <button class="btn btn-dark w-100" type="submit">Entrar</button>
+                            </form>
+                        </div>
+                        <div class="tab-pane fade" id="paneTiendaRegistro" role="tabpanel">
+                            <form id="formTiendaRegistro" autocomplete="on">
+                                <div class="row g-2">
+                                    <div class="col-12 mb-2">
+                                        <label class="form-label" for="reg_nombre">Nombre</label>
+                                        <input class="form-control" id="reg_nombre" name="nombre" required maxlength="50" autocomplete="given-name">
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label" for="reg_ap">Primer apellido</label>
+                                        <input class="form-control" id="reg_ap" name="primer_apellido" required maxlength="25">
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label" for="reg_am">Segundo apellido</label>
+                                        <input class="form-control" id="reg_am" name="segundo_apellido" maxlength="25">
+                                    </div>
+                                    <div class="col-12 mb-2">
+                                        <label class="form-label" for="reg_correo">Correo</label>
+                                        <input class="form-control" type="email" id="reg_correo" name="correo" required autocomplete="email">
+                                    </div>
+                                    <div class="col-12 mb-2">
+                                        <label class="form-label" for="reg_tel">Teléfono</label>
+                                        <input class="form-control" id="reg_tel" name="telefono" required maxlength="15" autocomplete="tel">
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label" for="reg_pw">Contraseña</label>
+                                        <input class="form-control" type="password" id="reg_pw" name="contrasena" required autocomplete="new-password">
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label" for="reg_pw2">Confirmar</label>
+                                        <input class="form-control" type="password" id="reg_pw2" name="contrasena_confirm" required autocomplete="new-password">
+                                    </div>
+                                </div>
+                                <div class="tienda-auth-banner-registro alert d-none mb-3 mt-2" role="alert"></div>
+                                <button class="btn btn-dark w-100" type="submit">Registrarme</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/site-nav.js"></script>
+    <script src="js/tienda-auth.js"></script>
+</body>
+</html>

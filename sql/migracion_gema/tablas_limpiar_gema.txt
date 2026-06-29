@@ -1,0 +1,51 @@
+# Tablas a vaciar (orden: hijos antes que padres). Una tabla por linea.
+# NO incluir: configuracion_general, empleados, roles, permisos, rol_permiso,
+# forma_pago, impuestos, tiendas, puestos, contratos_empleados, catalogos geo,
+# gastos_categoria, insumo_categorias, talleres, vistas vw_*.
+cola_impresion
+venta_descuentos
+venta_pagos
+venta_detalle
+ventas
+devoluciones
+apartado_cambios_pieza
+apartado_pagos
+apartado_detalle
+apartados
+factura_detalle
+facturas
+cliente_credito_consumos
+cliente_creditos
+cierre_caja
+cierres_caja
+reparaciones
+gasto_comprobantes
+gastos
+usuario_notificacion
+notificaciones
+token_recuperacion_contrasena
+auditoria_recuperacion_contrasena
+auditoria_detalle
+auditorias_inventario
+bitacora_movimientos
+pedido_proveedor_detalle
+pedidos_proveedor
+recepcion_proveedor_detalle
+recepciones_proveedor
+pagos_proveedores
+proveedor_contactos
+catalogo_compra
+promociones_banner
+promociones
+precio_historico
+imagenes_piezas
+movimientos_inventario
+piezas_stock
+piezas
+insumo_existencia
+insumos
+sub_familia
+familias
+metales
+proveedores
+clientes

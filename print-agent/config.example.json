@@ -1,0 +1,10 @@
+{
+  "serverUrl": "https://tu-dominio.com/admin",
+  "serverUrlUseLocalhost": false,
+  "serverPort": 443,
+  "serverPath": "/admin",
+  "cajaToken": "cambiar_token_seguro",
+  "printerName": "EPSON TM-T20 Receipt",
+  "pollIntervalMs": 1500,
+  "idTiendaCaja": 1
+}

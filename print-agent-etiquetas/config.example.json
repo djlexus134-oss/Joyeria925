@@ -1,0 +1,12 @@
+{
+  "serverUrl": "https://tu-dominio.com/admin",
+  "serverUrlUseLocalhost": false,
+  "serverPort": 443,
+  "serverPath": "/admin",
+  "cajaToken": "cambiar_token_seguro",
+  "printerName": "Argox OS-2140 PPLA",
+  "pythonPath": "",
+  "pollIntervalMs": 1500,
+  "destino": "etiqueta",
+  "testPayload": "ppla_win32"
+}

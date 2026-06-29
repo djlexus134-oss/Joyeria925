@@ -1,0 +1,88 @@
+# --- Secretos y entorno local ---
+/config.php
+.env
+.env.*
+!.env.example
+
+# Respaldos de BD (datos reales de clientes/ventas)
+backup_*.sql
+*_produccion.sql
+*.sql.gz
+*.dump
+
+# Cualquier config local de agentes (usar config.example.json)
+**/print-agent/config.json
+**/print-agent-etiquetas/config.json
+
+/api_empleados.py
+
+# --- Dependencias (instalar en servidor / PC caja) ---
+/vendor/
+node_modules/
+
+# Agentes de impresión: config local (tokens, URL, nombre impresora)
+/print-agent/config.json
+/print-agent-etiquetas/config.json
+
+# --- Logs y depuración ---
+*.log
+logs/
+.cursor/
+
+# --- Composer / PHP ---
+*.cache
+.phpunit.result.cache
+.php-cs-fixer.cache
+phpcs.xml
+psalm.xml
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# --- KPI dashboard (fuente); artefactos generados en build ---
+/admin/kpi-dashboard/node_modules/
+/admin/kpi-dashboard/dist/
+# Build de producción (generar: cd admin/kpi-dashboard && npm ci && npm run build)
+/admin/js/kpi-dashboard/*
+!/admin/js/kpi-dashboard/.gitkeep
+
+# --- Datos de usuario / uploads ---
+/uploads/contratos/*
+!/uploads/contratos/.gitkeep
+/admin/imagenes/piezas/*
+!/admin/imagenes/piezas/.gitkeep
+
+# --- Solo desarrollo (no exponer en producción) ---
+/admin/tests/
+/admin/debug_*.php
+/admin/includes/debug_*.inc.php
+/admin/diagnostico_pdf.php
+/admin/*probe*.php
+/admin/test_*.php
+/test.php
+
+# --- Migración Gema: dumps y respaldos locales (no versionar) ---
+/sql/migracion_gema/zipgema_dump/
+/sql/migracion_gema/backup_*.sql
+/sql/migracion_gema/*.dump
+/sql/migracion_gema/*.bak
+
+# --- Bases locales ---
+*.sqlite
+*.sqlite3
+
+# --- SO / editores ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Temporales impresión ---
+*.bin
