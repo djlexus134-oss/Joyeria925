@@ -15,18 +15,28 @@ class TicketEscPosBuilder
     {
         $out = $this->cmdInit();
         $out .= $this->cmdSetLeftMargin($this->marginDots);
+
+        $feedInicio = (int) ($ticket['feed_inicio_lineas'] ?? 1);
+        if ($feedInicio > 0) {
+            $out .= $this->cmdPrintAndFeed(min(10, $feedInicio));
+        }
+
         $out .= $this->cmdAlignCenter();
 
         $nombre = trim((string) ($ticket['nombre_comercial'] ?? ''));
         if ($nombre !== '') {
             $out .= $this->cmdBold(true);
-            $out .= $this->text($nombre) . "\n";
+            foreach ($this->wrapText($nombre) as $parte) {
+                $out .= $this->text($parte) . "\n";
+            }
             $out .= $this->cmdBold(false);
         }
 
         $horario = trim((string) ($ticket['horario'] ?? ''));
         if ($horario !== '') {
-            $out .= $this->text($horario) . "\n";
+            foreach ($this->wrapText($horario) as $parte) {
+                $out .= $this->text($parte) . "\n";
+            }
         }
 
         $out .= $this->text(str_repeat('-', $this->width)) . "\n";
@@ -181,6 +191,14 @@ class TicketEscPosBuilder
         return base64_encode($this->build($ticket));
     }
 
+    /** Avance de papel al inicio (ESC d). Evita que el encabezado quede en la zona de corte. */
+    private function cmdPrintAndFeed(int $lines): string
+    {
+        $lines = max(0, min(255, $lines));
+
+        return "\x1B\x64" . chr($lines);
+    }
+
     private function cmdInit(): string
     {
         return "\x1B\x40";
@@ -217,27 +235,29 @@ class TicketEscPosBuilder
     private function text(string $value): string
     {
         $value = $this->transliterate($value);
-        $value = preg_replace('/[^\x20-\x7E\xA0-\xFF]/u', '', $value) ?? '';
+        // Solo ASCII: evita bytes Latin-1 con regex /u (PHP los trata como UTF-8 invalido y borra la linea).
+        $value = preg_replace('/[^\x20-\x7E]/', '', $value) ?? '';
 
         return $value;
     }
 
     private function transliterate(string $value): string
     {
-        if (function_exists('iconv')) {
-            $converted = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $value);
-            if ($converted !== false) {
-                return $converted;
-            }
-        }
-
         $map = [
             'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
             'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U',
             'ñ' => 'n', 'Ñ' => 'N', 'ü' => 'u', 'Ü' => 'U',
         ];
+        $value = strtr($value, $map);
 
-        return strtr($value, $map);
+        if (function_exists('iconv')) {
+            $converted = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+            if ($converted !== false) {
+                return $converted;
+            }
+        }
+
+        return $value;
     }
 
     private function lineItemColumns(string $left, string $right): string

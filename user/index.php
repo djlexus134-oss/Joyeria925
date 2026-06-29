@@ -14,6 +14,7 @@ if ($nombreMostrar === '' && !empty($tiendaUser['correo'])) {
     $nombreMostrar = (string) $tiendaUser['correo'];
 }
 
+require_once __DIR__ . '/../includes/joyeria_branding.php';
 require_once __DIR__ . '/../admin/models/pieza.php';
 require_once __DIR__ . '/../includes/catalogo_banner_promos.php';
 require_once __DIR__ . '/../includes/promociones_tienda_publica.php';
@@ -198,32 +199,7 @@ uasort($menuCatalogoFamilias, static function (array $a, array $b): int {
     return strcasecmp((string) ($a['nombre'] ?? ''), (string) ($b['nombre'] ?? ''));
 });
 
-$vitrinaNarrativas = [
-    [
-        'etiqueta' => 'Pureza',
-        'titulo' => 'La luz que acompaña cada gesto',
-        'texto' => 'Creemos que la belleza de la joyería no grita: resuena. Una pieza bien hecha acompaña tus manos y tu silueta con calma y distinción.',
-        'variant' => 'vitrina-pane--mist',
-    ],
-    [
-        'etiqueta' => 'Forma',
-        'titulo' => 'Una pieza, un recuerdo',
-        'texto' => 'En la plata bien trabajada cada joya guarda un momento: un detalle que acompaña tu día a día y permanece cuando quieres revivir lo que importa.',
-        'variant' => 'vitrina-pane--noir',
-    ],
-    [
-        'etiqueta' => 'Tiempo',
-        'titulo' => 'Piezas pensadas para perdurar',
-        'texto' => 'Elegimos la plata y el trabajo artesanal para ofrecerte joyas que atraviesen tendencias como compañías silenciosas de tu historia personal.',
-        'variant' => 'vitrina-pane--sand',
-    ],
-    [
-        'etiqueta' => 'Esencia',
-        'titulo' => 'Brillo sutil para momentos memorables',
-        'texto' => 'Cada detalle celebra tu estilo con elegancia natural: una joya que destaca sin esfuerzo y acompana tus mejores recuerdos.',
-        'variant' => 'vitrina-pane--noir',
-    ],
-];
+$vitrinaNarrativas = joyeria_vitrina_narrativas();
 
 $fuenteVitrina = $listadoPlanoPiezasConImagen !== [] ? $listadoPlanoPiezasConImagen : $listadoPlanoPiezas;
 $piezasVitrinaCount = count($fuenteVitrina);
@@ -270,7 +246,7 @@ $promoBarInferiorActiva = $promoBarInferiorSegmentos !== [];
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Platería El Ángel | Mi cuenta</title>
+    <title><?php echo htmlspecialchars(joyeria_marca_titulo('Mi cuenta'), ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -355,8 +331,8 @@ $promoBarInferiorActiva = $promoBarInferiorSegmentos !== [];
 
     <header class="header">
         <div class="logo">
-            <h1>Platería El Ángel</h1>
-            <p>Artesanía y elegancia en plata</p>
+            <h1><?php echo htmlspecialchars(joyeria_marca_nombre(), ENT_QUOTES, 'UTF-8'); ?></h1>
+            <p><?php echo htmlspecialchars(joyeria_marca_tagline(), ENT_QUOTES, 'UTF-8'); ?></p>
         </div>
 
         <nav class="nav">
@@ -677,8 +653,9 @@ $promoBarInferiorActiva = $promoBarInferiorSegmentos !== [];
     <div class="footer-container">
 
         <div class="footer-col">
+            <h4>DIRECCIÓN</h4>
             <p class="footer-address">
-                Andador Nicolas Bravo 104, Colonia Centro, 38000 Celaya, Gto.
+                <?php echo htmlspecialchars(joyeria_negocio_domicilio(), ENT_QUOTES, 'UTF-8'); ?>
             </p>
 
             <h4>CONTACTO</h4>
@@ -687,7 +664,7 @@ $promoBarInferiorActiva = $promoBarInferiorSegmentos !== [];
             </a>
 
             <div class="footer-brand">
-                PLATERÍA EL ÁNGEL
+                <?php echo htmlspecialchars(JOYERIA_MARCA_FOOTER, ENT_QUOTES, 'UTF-8'); ?>
             </div>
         </div>
 

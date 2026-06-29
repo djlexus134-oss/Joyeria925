@@ -1,9 +1,10 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/../includes/MailService.php';
 require_once __DIR__ . '/../includes/WhatsAppService.php';
 require_once __DIR__ . '/../includes/NotificacionService.php';
 require_once __DIR__ . '/../includes/cliente_correo.php';
+require_once __DIR__ . '/../../includes/joyeria_branding.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -86,18 +87,19 @@ function envio_plantilla_correo(string $mensaje): string
 {
     $cuerpo = nl2br(htmlspecialchars($mensaje, ENT_QUOTES, 'UTF-8'));
     $year = date('Y');
+    $marca = htmlspecialchars(joyeria_marca_nombre(), ENT_QUOTES, 'UTF-8');
 
     return <<<HTML
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f6f4f1;font-family:Arial,sans-serif;color:#333;">
 <div style="max-width:600px;margin:0 auto;padding:24px;">
-    <div style="background:#1a1a1a;color:#f4d03f;padding:18px;text-align:center;border-radius:8px 8px 0 0;">
-        <h2 style="margin:0;">Plateria El Angel</h2>
+    <div style="background:#15202b;color:#9aadb8;padding:18px;text-align:center;border-radius:8px 8px 0 0;">
+        <h2 style="margin:0;">{$marca}</h2>
     </div>
-    <div style="background:#fff;border:1px solid #e2e2e2;border-top:none;padding:24px;border-radius:0 0 8px 8px;">
+    <div style="background:#fff;border:1px solid #dde4ea;border-top:none;padding:24px;border-radius:0 0 8px 8px;">
         <p style="margin:0;line-height:1.6;">{$cuerpo}</p>
     </div>
-    <p style="text-align:center;font-size:11px;color:#a39b8e;margin-top:16px;">&copy; {$year} Plateria El Angel</p>
+    <p style="text-align:center;font-size:11px;color:#8a939c;margin-top:16px;">&copy; {$year} {$marca}</p>
 </div>
 </body></html>
 HTML;
@@ -137,7 +139,7 @@ try {
         }
         $asunto = trim((string) ($data['asunto'] ?? ''));
         if ($asunto === '') {
-            $asunto = 'Notificacion - Plateria El Angel';
+            $asunto = 'Notificación - ' . joyeria_marca_nombre();
         }
 
         $canales = is_array($data['canales'] ?? null) ? $data['canales'] : [];

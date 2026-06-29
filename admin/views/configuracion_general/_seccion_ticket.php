@@ -44,6 +44,12 @@
                    value="<?php echo (int) $valores['ticket_margen_izquierdo']; ?>">
         </div>
         <div class="form-group">
+            <label for="ticket_feed_inicio_lineas">Avance al inicio (líneas)</label>
+            <input class="form-input" type="number" min="0" max="10" name="ticket_feed_inicio_lineas" id="ticket_feed_inicio_lineas"
+                   value="<?php echo (int) ($valores['ticket_feed_inicio_lineas'] ?? 1); ?>">
+            <small class="form-hint">0 = sin avance extra. Usa 1–2 si el encabezado queda pegado al corte; 3+ deja mucho papel en blanco arriba.</small>
+        </div>
+        <div class="form-group">
             <label for="impresion_nombre_impresora">Nombre impresora Windows</label>
             <input class="form-input" type="text" name="impresion_nombre_impresora" id="impresion_nombre_impresora" maxlength="120"
                    value="<?php echo htmlspecialchars((string) $valores['impresion_nombre_impresora']); ?>">

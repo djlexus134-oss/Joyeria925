@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../includes/joyeria_branding.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 $guard = auth_current_access_guard();
@@ -63,7 +64,7 @@ $authCurrentScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'index.php'))
 
 <head>
     <meta charset="UTF-8">
-    <title>Administrador | Platería El Ángel</title>
+    <title><?php echo htmlspecialchars(joyeria_marca_titulo('Administrador'), ENT_QUOTES, 'UTF-8'); ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?php echo htmlspecialchars(joyeria_admin_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
@@ -146,7 +147,7 @@ $authCurrentScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'index.php'))
 
         <aside class="admin-sidebar">
             <div class="admin-brand">
-                <h1>Platería El Ángel</h1>
+                <h1><?php echo htmlspecialchars(joyeria_marca_nombre(), ENT_QUOTES, 'UTF-8'); ?></h1>
                 <p>Panel Administrativo</p>
             </div>
 

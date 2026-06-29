@@ -220,7 +220,7 @@
                     + '</table>'
                     + '<p style="margin-top:6px;font-size:13px;color:#666;">Destinatarios procesados: ' + (r.destinatarios || 0) + '</p>';
                 if (data.aviso) {
-                    html += '<p style="font-size:13px;color:#8b6914;">' + escHtml(data.aviso) + '</p>';
+                    html += '<p style="font-size:13px;color:#5b7384;">' + escHtml(data.aviso) + '</p>';
                 }
                 if (data.errores && data.errores.length) {
                     html += '<ul style="font-size:13px;color:#a33;">';

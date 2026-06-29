@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/includes/joyeria_branding.php';
 require_once __DIR__ . '/admin/includes/tienda_auth.php';
 require_once __DIR__ . '/includes/turnstile_helpers.php';
 
@@ -19,7 +20,7 @@ $turnstileSiteKey = joyeria_turnstile_site_key();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Confirma tu correo | Platería El Ángel</title>
+    <title><?php echo htmlspecialchars(joyeria_marca_titulo('Confirma tu correo'), ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/admin.css">
@@ -28,7 +29,7 @@ $turnstileSiteKey = joyeria_turnstile_site_key();
     <div class="admin-login-wrap">
         <section class="admin-login-card general-login-card">
             <div class="admin-login-brand">
-                <h1>Platería El Ángel</h1>
+                <h1><?php echo htmlspecialchars(joyeria_marca_nombre(), ENT_QUOTES, 'UTF-8'); ?></h1>
             </div>
 
             <h2><i class="bi bi-envelope-check"></i> Revisa tu correo</h2>

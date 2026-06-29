@@ -1,6 +1,6 @@
 # Deploy Joyería — VPS + PC de caja
 
-Guía para publicar la aplicación en un **VPS Linux** (PHP + MariaDB + Nginx) y dejar operativos los **agentes de impresión** en una **PC Windows** de tienda (impresoras USB).
+Guía para publicar la aplicación en un **VPS Linux** (PHP + MariaDB + Nginx) y dejar operativos los **agentes de impresión** en una **PC Windows** de tienda (impresoras **USB o red**).
 
 ## Arquitectura
 
@@ -23,7 +23,8 @@ Guía para publicar la aplicación en un **VPS Linux** (PHP + MariaDB + Nginx) y
   │ print-agent  │            │ (solo web)   │
   │ print-agent- │            └──────────────┘
   │  etiquetas   │
-  │ Epson + Argox│
+  │ Epson (red)  │
+  │ + etiquetas  │
   └──────────────┘
 ```
 
@@ -458,20 +459,149 @@ find /var/backups -name 'joyeria-*.sql.gz' -mtime +14 -delete
 
 ### 3.2 Drivers de impresoras
 
-**Epson TM-T20 (tickets)** — ver `print-agent/README.md`:
+**Epson TM-T20 (tickets)** — ver también [3.2b Epson por red](#32b-epson-tm-t20-por-red-ethernetwifi) y `print-agent/README.md`:
 
-- TMUSB Device Driver
-- TM-APD
-- Comprobar nombre en Windows: `EPSON TM-T20 Receipt`
+- **TM-APD** (Advanced Printer Driver) — obligatorio para tickets ESC/POS
+- TMUSB Device Driver — solo si también usas USB
+- Comprobar nombre en Windows: `EPSON TM-T20 Receipt` (puede variar según el driver instalado)
 
-**Argox OS-2140 (etiquetas)** — ver `print-agent-etiquetas/README.md`:
+**Etiquetas (Zebra ZD220 u otra)** — ver `print-agent-etiquetas/README.md`:
 
-- Driver variante **PPLA**
-- Material: gap 3 mm; etiqueta 60×10 mm
+- Driver del fabricante (ej. `ZDesigner ZD220-203dpi ZPL` en modo IMAGEN)
+- Material: gap 3 mm; etiqueta mariposa 60×10 mm
 
 ```powershell
-Get-Printer | Format-Table Name, DriverName
+Get-Printer | Format-Table Name, DriverName, PortName
 ```
+
+### 3.2b Epson TM-T20 por red (Ethernet/Wi‑Fi)
+
+La impresora de tickets puede ir **en la LAN** (sin USB). El sistema **no** escribe a `COM4` ni a la IP desde PHP: el flujo es siempre:
+
+```
+POS (navegador) → cola_impresion (VPS) → print-agent (PC caja) → impresora Windows (RAW) → red → Epson
+```
+
+El agente solo necesita el **nombre exacto** de la impresora en Windows (`printerName` en `config.json`). El puerto (TCP/IP, COM emulation, USB) lo resuelve Windows.
+
+#### A) Obtener la IP de la impresora
+
+1. Conecta la Epson a la misma red que la PC de caja (Ethernet o Wi‑Fi).
+2. Imprime la **hoja de configuración de red** (botón Feed en la impresora o menú Epson).
+3. Anota:
+   - **IP Address** (ej. `192.168.68.66`)
+   - **Gateway** (ej. `192.168.68.1`)
+   - **DHCP** (Enable / Disable)
+
+Opcional: abre **WebConfig** en el navegador: `http://IP_DE_LA_IMPRESORA`
+
+#### B) Comprobar conectividad desde la PC de caja
+
+```powershell
+ping 192.168.68.66
+```
+
+Debe responder. Si no:
+
+- PC e impresora en la **misma subred** (misma Wi‑Fi / mismo switch).
+- Revisa firewall del router o VLAN distinta.
+
+#### C) Instalar la impresora en Windows
+
+**Opción recomendada — puerto TCP/IP**
+
+1. **Configuración → Impresoras y escáneres → Agregar dispositivo → Agregar manualmente**.
+2. **TCP/IP** → dirección `192.168.68.66`, puerto **9100** (RAW, habitual en Epson).
+3. Driver: fabricante **EPSON** → **`EPSON TM-T20 ReceiptE4`**
+   - **ReceiptE4** = ESC/POS (México/LATAM) — el correcto para tickets del POS.
+   - **ReceiptJ4** = variante Japón — no usar.
+   - **TM-T20-42C** — solo si la etiqueta física del equipo dice `-42C`.
+4. Nombre sugerido: **`EPSON TM-T20 Receipt`**.
+5. Imprime **página de prueba** desde Windows.
+
+**Opción alternativa — EPSON COM Port Emulation**
+
+1. Instala la utilidad **EPSON COM Port Emulation**.
+2. Mapea **COM4** (u otro COM libre) → IP `192.168.68.66`.
+3. **Test Print** en la utilidad → debe salir ticket.
+4. En la impresora en Windows: **Propiedades → Puertos** → marca **COM4: (EPSON COM Emulation TCP/IP Port)**.
+
+No hace falta configurar `COM4` en PHP ni en `print-agent`; solo importa que la impresora de Windows use un puerto que llegue a la IP correcta.
+
+#### D) Verificar nombre para el agente
+
+```powershell
+Get-Printer | Select-Object Name, PortName, DriverName
+```
+
+Copia el valor de **Name** (ej. `EPSON TM-T20 Receipt`) a `print-agent/config.json` → `printerName`.
+
+#### E) Configurar `print-agent` (tickets)
+
+**Producción (VPS + HTTPS):**
+
+```json
+{
+  "serverUrl": "https://tu-dominio.com/admin",
+  "serverUrlUseLocalhost": false,
+  "cajaToken": "TOKEN_LARGO_IGUAL_AL_ADMIN",
+  "printerName": "EPSON TM-T20 Receipt",
+  "pollIntervalMs": 1500,
+  "idTiendaCaja": 1
+}
+```
+
+**Desarrollo local (Docker en la misma PC, puerto 8080):**
+
+```json
+{
+  "serverUrl": "auto",
+  "serverUrlUseLocalhost": true,
+  "serverScheme": "http",
+  "serverPort": 8080,
+  "serverPath": "/Joyeria925/admin",
+  "cajaToken": "TOKEN_LARGO_IGUAL_AL_ADMIN",
+  "printerName": "EPSON TM-T20 Receipt",
+  "pollIntervalMs": 1500,
+  "idTiendaCaja": 1
+}
+```
+
+En el admin: **Configuración → Ticket POS** → activar **Encolar tickets al confirmar venta** y el **mismo token** que `cajaToken`.
+
+Prueba:
+
+```powershell
+cd C:\Joyeria\print-agent
+npm install
+npm start
+```
+
+Haz una venta de prueba en el POS; en consola debe aparecer `Ticket impreso venta #...`.
+
+#### F) Fijar la IP (evitar “desconfiguración” tras apagones)
+
+Un **apagón de luz no borra** el driver ni el `config.json` del agente. La impresora guarda su configuración en memoria flash.
+
+El **riesgo real** es que, con **DHCP activo**, el router asigne **otra IP** al encender y Windows siga apuntando a la IP antigua → deja de imprimir hasta actualizar el puerto o reservar la IP.
+
+| Medida | Acción |
+|--------|--------|
+| **Reserva DHCP (recomendado)** | En el router (`192.168.68.1` o el gateway de la hoja): reservar la MAC de la Epson → IP fija (ej. `192.168.68.66`). |
+| **IP estática en la impresora** | WebConfig → desactivar DHCP → IP, máscara y gateway manuales. |
+| **Tras un apagón (checklist 30 s)** | 1) ¿Impresora encendida? 2) `ping` a la IP esperada 3) Si falla, imprimir hoja de red y actualizar puerto Windows si cambió la IP. |
+
+No hace falta reinstalar drivers ni reconfigurar el agente por cada corte de luz si la IP está reservada o es estática.
+
+#### G) Solución de problemas — Epson en red
+
+| Síntoma | Causa habitual | Qué hacer |
+|---------|----------------|-----------|
+| Test Print Epson OK, POS no imprime | Agente apagado o token distinto | `npm start` / servicio NSSM; igualar token admin y `config.json` |
+| `Impresora no encontrada` en agente | `printerName` incorrecto | `Get-Printer` → copiar nombre exacto |
+| Ping falla | Red distinta o IP cambió | Hoja de red; reserva DHCP |
+| Ticket basura o en blanco | Driver incorrecto | Usar **ReceiptE4**, no J4 |
+| Cola pendiente, agente silencioso | URL del VPS inalcanzable | `curl` a `/admin/api/impresion.php`; firewall Windows permite Node.js |
 
 ### 3.3 Clonar proyecto en la caja
 
@@ -608,7 +738,9 @@ Instalacion manual (alternativa sin script): [NSSM](https://nssm.cc/download) co
 
 ### PC caja
 
-- [ ] Drivers Epson + Argox instalados
+- [ ] Drivers Epson (ReceiptE4) + etiquetas instalados
+- [ ] Epson en red: ping a IP, página de prueba Windows OK
+- [ ] IP reservada en router o estática en impresora (recomendado)
 - [ ] `config.json` en ambos agentes con URL HTTPS y token
 - [ ] `npm start` imprime ticket y etiqueta de prueba
 - [ ] Servicios NSSM en automático (opcional)
@@ -627,6 +759,8 @@ Instalacion manual (alternativa sin script): [NSSM](https://nssm.cc/download) co
 |---------|----------------|-----------|
 | Agente 401 | Token distinto al del admin | Igualar `cajaToken` y BD |
 | Cola pendiente, no imprime | Agente apagado o sin internet | `npm start`, ping al dominio |
+| Ticket OK antes, tras apagón no | IP Epson cambió (DHCP) | Hoja de red; reserva DHCP; actualizar puerto Windows |
+| Epson red: ping falla | PC e impresora en redes distintas | Misma LAN; revisar IP en WebConfig |
 | SSL error en agente | Certificado inválido en VPS | `certbot`, revisar cadena |
 | KPI vacío en dashboard | Falta build | `deploy-release.sh` o `npm run build` en `admin/kpi-dashboard` |
 | Error GD / fuentes etiquetas | PHP sin `php-gd` o fuentes | `apt install php-gd fonts-dejavu-core` |

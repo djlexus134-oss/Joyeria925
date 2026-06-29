@@ -24,7 +24,7 @@ $configHubCss = __DIR__ . '/../../../css/config-hub.css';
             <h3>Centro de configuración</h3>
             <p>Ajusta valores por defecto del negocio, tickets de venta, etiquetas Argox y textos legales de contratos. Los cambios se aplican de inmediato en captura e impresión.</p>
         </div>
-        <i class="bi bi-sliders2" style="font-size:2rem;color:#8b6914;opacity:0.85;"></i>
+        <i class="bi bi-sliders2" style="font-size:2rem;color:#5b7384;opacity:0.85;"></i>
     </div>
 
     <nav class="config-hub-tabs" role="tablist" aria-label="Secciones de configuración">

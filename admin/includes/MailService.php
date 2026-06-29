@@ -93,11 +93,14 @@ class MailService
             $c['debug'] = (int) JOYERIA_SMTP_DEBUG;
         }
 
-        $appUrl = self::readAppUrlFromDb();
+        $appUrl = '';
+        if (defined('JOYERIA_APP_URL') && trim((string) JOYERIA_APP_URL) !== '') {
+            $appUrl = trim((string) JOYERIA_APP_URL);
+        } else {
+            $appUrl = self::readAppUrlFromDb();
+        }
         if ($appUrl !== '') {
             $c['app_url'] = $appUrl;
-        } elseif (defined('JOYERIA_APP_URL') && trim((string) JOYERIA_APP_URL) !== '') {
-            $c['app_url'] = trim((string) JOYERIA_APP_URL);
         }
 
         self::$resolvedConfig = $c;
@@ -245,6 +248,19 @@ class MailService
             $host = $_SERVER['HTTP_HOST'] ?? '';
             if ($host !== '') {
                 $url = $scheme . '://' . $host;
+            }
+        }
+
+        // Si la URL no incluye subcarpeta (p. ej. /Joyeria925), inferirla desde la petición admin.
+        if ($url !== '' && preg_match('#^https?://[^/]+$#i', $url)) {
+            $scriptName = isset($_SERVER['SCRIPT_NAME'])
+                ? str_replace('\\', '/', (string) $_SERVER['SCRIPT_NAME'])
+                : '';
+            if ($scriptName !== '' && preg_match('#^(.*)/admin/#', $scriptName, $m)) {
+                $basePath = rtrim((string) $m[1], '/');
+                if ($basePath !== '' && $basePath !== '/') {
+                    $url .= $basePath;
+                }
             }
         }
 

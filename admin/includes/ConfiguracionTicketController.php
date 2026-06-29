@@ -60,6 +60,7 @@ class ConfiguracionTicketController
             ['clave' => 'ticket_mensaje_pie', 'tipo' => 'STRING', 'desc' => 'Mensaje al pie'],
             ['clave' => 'ticket_ancho_columnas', 'tipo' => 'INT', 'desc' => 'Ancho en caracteres'],
             ['clave' => 'ticket_margen_izquierdo', 'tipo' => 'INT', 'desc' => 'Margen izquierdo en puntos ESC/POS'],
+            ['clave' => 'ticket_feed_inicio_lineas', 'tipo' => 'INT', 'desc' => 'Lineas de avance antes del encabezado'],
             ['clave' => 'impresion_nombre_impresora', 'tipo' => 'STRING', 'desc' => 'Nombre impresora Windows'],
             ['clave' => 'impresion_id_tienda_caja', 'tipo' => 'INT', 'desc' => 'ID tienda de esta caja'],
             ['clave' => 'etiqueta_impresion_nombre_impresora', 'tipo' => 'STRING', 'desc' => 'Nombre impresora Argox'],

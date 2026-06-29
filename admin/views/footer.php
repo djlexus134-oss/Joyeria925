@@ -2,7 +2,7 @@
 
     <footer class="admin-footer">
         <p>
-            © 2026 Platería El Ángel. <span class="admin-footer-accent">Panel Administrativo</span>
+            © <?php echo date('Y'); ?> <?php echo htmlspecialchars(joyeria_marca_nombre(), ENT_QUOTES, 'UTF-8'); ?>. <span class="admin-footer-accent">Panel Administrativo</span>
         </p>
         <p class="admin-footer-version">
             Versión 1.0 

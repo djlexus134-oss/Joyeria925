@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/joyeria_branding.php';
 require_once __DIR__ . '/../admin/includes/tienda_auth.php';
 require_once __DIR__ . '/../admin/models/carrito.php';
 require_once __DIR__ . '/../admin/models/apartado_gestion.php';
@@ -53,7 +54,7 @@ function joyeria_carrito_img(?string $url): string
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carrito | Platería El Ángel</title>
+    <title><?php echo htmlspecialchars(joyeria_marca_titulo('Carrito'), ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="../css/main.css">
@@ -234,7 +235,7 @@ function joyeria_carrito_img(?string $url): string
                 <div class="form-check mb-3">
                     <input class="form-check-input" type="checkbox" id="checkEntregaTienda">
                     <label class="form-check-label" for="checkEntregaTienda">
-                        Acepto que la entrega de mi compra es <strong>exclusivamente en tienda</strong> y que debere
+                        Acepto que la entrega de mi compra es <strong>exclusivamente en tienda</strong> y que deberé
                         presentar una identificación oficial junto con mi número de orden.
                     </label>
                 </div>

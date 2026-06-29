@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/joyeria_branding.php';
 require_once __DIR__ . '/../admin/includes/tienda_auth.php';
 require_once __DIR__ . '/../admin/models/venta_online.php';
 
@@ -49,7 +50,7 @@ function joyeria_compras_label_pago(string $estado): array
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis compras | Platería El Ángel</title>
+    <title><?php echo htmlspecialchars(joyeria_marca_titulo('Mis compras'), ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="../css/main.css">
@@ -75,7 +76,7 @@ function joyeria_compras_label_pago(string $estado): array
     <?php if ($compras === []): ?>
         <div class="text-center py-5">
             <p class="text-muted lead">Aún no tienes compras en línea.</p>
-            <a href="index.php#catalogo" class="btn btn-dark">Explorar catalogo</a>
+            <a href="index.php#catalogo" class="btn btn-dark">Explorar catálogo</a>
         </div>
     <?php else: ?>
         <div class="table-responsive">

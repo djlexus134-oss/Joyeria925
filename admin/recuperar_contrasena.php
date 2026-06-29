@@ -6,6 +6,7 @@
  * Accesible solo con el token del correo de recuperación
  */
 
+require_once __DIR__ . '/../includes/joyeria_branding.php';
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/includes/joyeria_session.php';
 joyeria_session_start();
@@ -78,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValido) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nueva Contraseña — Platería El Ángel</title>
+    <title><?php echo htmlspecialchars(joyeria_marca_titulo('Nueva contraseña'), ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="../css/main.css">
@@ -132,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValido) {
             width: 64px;
             height: 64px;
             border-radius: 50%;
-            background: linear-gradient(140deg, #d8b964 0%, #bfa14a 55%, #9c8038 100%);
+            background: linear-gradient(140deg, #9aadb8 0%, #6b8494 55%, #4a6274 100%);
             color: #fff;
             display: flex;
             align-items: center;
@@ -405,7 +406,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValido) {
 </head>
 <body class="auth-page">
     <main class="auth-card" role="main">
-        <div class="auth-brand">Platería El Ángel</div>
+        <div class="auth-brand"><?php echo htmlspecialchars(joyeria_marca_nombre(), ENT_QUOTES, 'UTF-8'); ?></div>
 
         <div class="auth-header">
             <div class="auth-icon" aria-hidden="true">

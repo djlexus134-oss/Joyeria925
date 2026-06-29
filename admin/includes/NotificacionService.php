@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../sistema.class.php';
 require_once __DIR__ . '/MailService.php';
+require_once __DIR__ . '/../../includes/joyeria_branding.php';
 
 class NotificacionService
 {
@@ -317,7 +318,7 @@ class NotificacionService
         $correos = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'correo');
 
         if ($correos === []) return;
-        $asunto = 'Nueva venta en linea #' . $venta['id_venta'] . ' - Aparta piezas';
+        $asunto = 'Nueva venta en línea #' . $venta['id_venta'] . ' - Aparta piezas';
         $html = $this->plantillaCorreoEmpleado($venta, $tiendaInfo);
         foreach ($correos as $c) {
             MailService::enviarNotificacion((string) $c, $asunto, $html);
@@ -328,7 +329,7 @@ class NotificacionService
     {
         $correo = (string) ($venta['cliente_correo'] ?? '');
         if ($correo === '') return;
-        $asunto = 'Confirmacion de tu compra en linea #' . $venta['id_venta'] . ' - Plateria El Angel';
+        $asunto = 'Confirmación de tu compra en línea #' . $venta['id_venta'] . ' - ' . joyeria_marca_nombre();
         $html = $this->plantillaCorreoClienteConfirmacion($venta, $tiendaInfo);
         MailService::enviarNotificacion($correo, $asunto, $html);
     }
@@ -337,7 +338,7 @@ class NotificacionService
     {
         $correo = (string) ($venta['cliente_correo'] ?? '');
         if ($correo === '') return;
-        $asunto = 'Tu compra #' . $venta['id_venta'] . ' esta lista para recoger en tienda';
+        $asunto = 'Tu compra #' . $venta['id_venta'] . ' está lista para recoger en tienda';
         $html = $this->plantillaCorreoClienteListo($venta, $tiendaInfo);
         MailService::enviarNotificacion($correo, $asunto, $html);
     }
@@ -364,13 +365,13 @@ class NotificacionService
 <!DOCTYPE html><html><head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,sans-serif;color:#333;">
 <div style="max-width:700px;margin:0 auto;padding:20px;">
-    <h2 style="color:#1a1a1a;">Nueva venta en linea #{$idV}</h2>
+    <h2 style="color:#1a1a1a;">Nueva venta en línea #{$idV}</h2>
     <p>Hola equipo de <strong>{$tienda}</strong>,</p>
-    <p>Se acaba de confirmar el pago de la siguiente venta en linea. Por favor, aparten las piezas del anaquel
+    <p>Se acaba de confirmar el pago de la siguiente venta en línea. Por favor, aparten las piezas del anaquel
        y marquen el pedido como <strong>"Lista para recoger"</strong> desde el panel administrativo.</p>
 
     <table style="width:100%;border-collapse:collapse;margin-top:14px;">
-        <tr style="background:#1a1a1a;color:#f4d03f;"><th style="padding:6px;text-align:left;">Codigo</th>
+        <tr style="background:#1a1a1a;color:#f4d03f;"><th style="padding:6px;text-align:left;">Código</th>
             <th style="padding:6px;text-align:left;">Pieza</th>
             <th style="padding:6px;text-align:left;">Metal</th>
             <th style="padding:6px;text-align:left;">Sucursal</th>
@@ -381,7 +382,7 @@ class NotificacionService
 
     <p style="margin-top:14px;"><strong>Cliente:</strong> {$cliente}<br><strong>Total:</strong> \${$total} MXN</p>
     <p style="background:#fffbe6;padding:10px;border-left:4px solid #f4d03f;">
-        <strong>Entrega exclusivamente en tienda.</strong> El cliente recogera con identificacion oficial y numero de orden.
+        <strong>Entrega exclusivamente en tienda.</strong> El cliente recogerá con identificación oficial y número de orden.
     </p>
 </div></body></html>
 HTML;
@@ -406,19 +407,19 @@ HTML;
 <body style="font-family:Arial,sans-serif;color:#333;">
 <div style="max-width:700px;margin:0 auto;padding:20px;">
     <h2 style="color:#1a1a1a;">Gracias por tu compra, {$cliente}</h2>
-    <p>Recibimos tu pago. Tu numero de orden es <strong>#{$idV}</strong>.</p>
+    <p>Recibimos tu pago. Tu número de orden es <strong>#{$idV}</strong>.</p>
     <ul>{$filas}</ul>
     <p><strong>Total:</strong> \${$total} MXN</p>
 
     <div style="background:#fffbe6;padding:14px;border-left:4px solid #f4d03f;margin-top:14px;">
         <strong>Entrega exclusivamente en tienda.</strong><br>
         Tu pieza queda apartada en la sucursal <strong>{$tienda}</strong>. Te enviaremos un nuevo correo
-        cuando este lista para recoger. Para recogerla deberas presentar:
+        cuando esté lista para recoger. Para recogerla deberás presentar:
         <ol>
-            <li>Identificacion oficial con fotografia.</li>
-            <li>Tu numero de orden <strong>#{$idV}</strong>.</li>
+            <li>Identificación oficial con fotografía.</li>
+            <li>Tu número de orden <strong>#{$idV}</strong>.</li>
         </ol>
-        No realizamos envios a domicilio.
+        No realizamos envíos a domicilio.
     </div>
 </div></body></html>
 HTML;
@@ -429,23 +430,24 @@ HTML;
         $idV = (int) $venta['id_venta'];
         $tienda = htmlspecialchars((string) ($tiendaInfo['nom_tienda'] ?? '—'));
         $cliente = htmlspecialchars((string) ($venta['cliente_nombre'] ?? 'Cliente'));
+        $marca = htmlspecialchars(joyeria_marca_nombre(), ENT_QUOTES, 'UTF-8');
 
         return <<<HTML
 <!DOCTYPE html><html><head><meta charset="UTF-8"></head>
 <body style="font-family:Arial,sans-serif;color:#333;">
 <div style="max-width:700px;margin:0 auto;padding:20px;">
-    <h2 style="color:#1a1a1a;">Tu compra esta lista, {$cliente}</h2>
-    <p>Tu orden <strong>#{$idV}</strong> ya esta apartada y lista para recoger en la sucursal
+    <h2 style="color:#1a1a1a;">Tu compra está lista, {$cliente}</h2>
+    <p>Tu orden <strong>#{$idV}</strong> ya está apartada y lista para recoger en la sucursal
        <strong>{$tienda}</strong>.</p>
     <div style="background:#fffbe6;padding:14px;border-left:4px solid #f4d03f;">
         Para recogerla, presenta:
         <ol>
-            <li><strong>Identificacion oficial</strong> con fotografia.</li>
-            <li>Tu numero de orden <strong>#{$idV}</strong>.</li>
+            <li><strong>Identificación oficial</strong> con fotografía.</li>
+            <li>Tu número de orden <strong>#{$idV}</strong>.</li>
         </ol>
-        Recuerda que no realizamos envios a domicilio.
+        Recuerda que no realizamos envíos a domicilio.
     </div>
-    <p style="margin-top:14px;">Te esperamos. Gracias por tu compra en Plateria El Angel.</p>
+    <p style="margin-top:14px;">Te esperamos. Gracias por tu compra en {$marca}.</p>
 </div></body></html>
 HTML;
     }

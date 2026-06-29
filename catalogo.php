@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/includes/joyeria_branding.php';
 require_once __DIR__ . '/admin/models/pieza.php';
 require_once __DIR__ . '/admin/models/sub_familia.php';
 require_once __DIR__ . '/includes/catalogo_banner_promos.php';
@@ -202,7 +203,7 @@ $promoBarInferiorActiva = $promoBarInferiorSegmentos !== [];
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catálogo | Platería El Ángel</title>
+    <title><?php echo htmlspecialchars(joyeria_marca_titulo('Catálogo'), ENT_QUOTES, 'UTF-8'); ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/main.css">
@@ -220,8 +221,8 @@ $promoBarInferiorActiva = $promoBarInferiorSegmentos !== [];
 
     <header class="header">
         <div class="logo">
-            <h1>Platería El Ángel</h1>
-            <p>Artesanía y elegancia en plata</p>
+            <h1><?php echo htmlspecialchars(joyeria_marca_nombre(), ENT_QUOTES, 'UTF-8'); ?></h1>
+            <p><?php echo htmlspecialchars(joyeria_marca_tagline(), ENT_QUOTES, 'UTF-8'); ?></p>
         </div>
         <nav class="nav">
             <ul>
@@ -247,7 +248,6 @@ $promoBarInferiorActiva = $promoBarInferiorSegmentos !== [];
                     <?php endif; ?>
                 </li>
                 <li><a href="<?php echo htmlspecialchars($hrefInicio, ENT_QUOTES, 'UTF-8'); ?>#vitrina">Inicio</a></li>
-                <li><a href="<?php echo htmlspecialchars($hrefCatalogoGeneral, ENT_QUOTES, 'UTF-8'); ?>">Catálogo general</a></li>
             </ul>
         </nav>
 

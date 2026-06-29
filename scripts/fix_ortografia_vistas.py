@@ -8,6 +8,8 @@ REPLACEMENTS = [
     ("Cerrar sesion", "Cerrar sesión"),
     ("Inicia sesion", "Inicia sesión"),
     ("iniciar sesion", "iniciar sesión"),
+    ("Plateria 0.925", "Platería 0.925"),
+    ("Plateria el Angel", "Platería El Ángel"),
     ("Plateria El Angel", "Platería El Ángel"),
     ("acompaana", "acompaña"),
     ("acompaana", "acompaña"),

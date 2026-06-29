@@ -15,9 +15,9 @@
 }
 
 .config-hub {
-    --hub-accent: #8b6914;
-    --hub-accent-soft: #f7f0e4;
-    --hub-card-shadow: 0 8px 28px rgba(42, 34, 20, 0.06);
+    --hub-accent: #5b7384;
+    --hub-accent-soft: #eef3f6;
+    --hub-card-shadow: 0 8px 28px rgba(21, 32, 43, 0.08);
 }
 
 .config-hub-hero {
@@ -29,7 +29,7 @@
     margin-bottom: 1.25rem;
     border: 1px solid var(--border);
     border-radius: 14px;
-    background: linear-gradient(135deg, #fffdf8 0%, #f8f4ec 100%);
+    background: linear-gradient(135deg, #f8fbfd 0%, #eef3f7 100%);
     box-shadow: var(--hub-card-shadow);
 }
 
@@ -81,7 +81,7 @@
 .config-hub-tab.is-active {
     background: #fff;
     color: var(--heading);
-    box-shadow: 0 2px 10px rgba(42, 34, 20, 0.08);
+    box-shadow: 0 2px 10px rgba(21, 32, 43, 0.1);
     font-weight: 600;
 }
 
@@ -169,7 +169,7 @@
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(8px);
-    box-shadow: 0 -4px 24px rgba(42, 34, 20, 0.06);
+    box-shadow: 0 -4px 24px rgba(21, 32, 43, 0.08);
 }
 
 .config-hub-savebar small {

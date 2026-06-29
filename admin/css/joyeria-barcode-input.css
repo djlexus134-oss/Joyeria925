@@ -20,17 +20,17 @@
     font-size: 1.35rem;
     font-weight: 700;
     line-height: 1;
-    border: 1px solid var(--color-border, #c9b896);
+    border: 1px solid var(--color-border, #c7d4de);
     border-radius: 8px;
     background: #fff;
-    color: var(--color-primary, #8b6914);
+    color: var(--color-primary, #5b7384);
     cursor: pointer;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
 }
 
 .joyeria-barcode-key-btn:active {
-    background: var(--color-primary-light, #f5ecd8);
+    background: var(--color-primary-light, #e9f1f6);
 }
 
 .joyeria-barcode-mobile-hint {

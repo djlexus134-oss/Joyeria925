@@ -25,6 +25,7 @@ class TicketService
             'ticket_mensaje_pie',
             'ticket_ancho_columnas',
             'ticket_margen_izquierdo',
+            'ticket_feed_inicio_lineas',
             'ticket_mostrar_impuesto',
             'ticket_mostrar_empleado',
             'impresion_habilitada',
@@ -36,7 +37,7 @@ class TicketService
 
     public function leerConfigTicket(): array
     {
-        return $this->config->leerPorClaves($this->clavesConfig());
+        return $this->config->leerConDefaults($this->clavesConfig());
     }
 
     public function impresionHabilitada(): bool
@@ -142,6 +143,10 @@ class TicketService
         if ($margen < 0) {
             $margen = 0;
         }
+        $feedInicio = (int) ($cfg['ticket_feed_inicio_lineas'] ?? 1);
+        if ($feedInicio < 0) {
+            $feedInicio = 0;
+        }
 
         return [
             'id_venta' => (int) $venta['id_venta'],
@@ -153,6 +158,7 @@ class TicketService
             'mostrar_empleado' => !empty($cfg['ticket_mostrar_empleado']),
             'ancho_columnas' => $ancho,
             'margen_izquierdo' => $margen,
+            'feed_inicio_lineas' => $feedInicio,
             'fecha_venta' => (string) ($venta['fecha_venta'] ?? ''),
             'empleado_numero' => $this->formatearNumeroEmpleado((int) ($venta['id_empleado_FK'] ?? 0)),
             'cliente_nombre' => (string) ($venta['cliente_nombre'] ?? ''),
@@ -213,6 +219,10 @@ class TicketService
         $margen = (int) ($cfg['ticket_margen_izquierdo'] ?? 40);
         if ($margen < 0) {
             $margen = 0;
+        }
+        $feedInicio = (int) ($cfg['ticket_feed_inicio_lineas'] ?? 1);
+        if ($feedInicio < 0) {
+            $feedInicio = 0;
         }
 
         $subtotal = 0.0;
@@ -283,6 +293,7 @@ class TicketService
             'mostrar_empleado' => !empty($cfg['ticket_mostrar_empleado']),
             'ancho_columnas' => $ancho,
             'margen_izquierdo' => $margen,
+            'feed_inicio_lineas' => $feedInicio,
             'id_venta' => $idApartado,
             'fecha_venta' => $fecha,
             'empleado_numero' => $this->formatearNumeroEmpleado($idEmp),
