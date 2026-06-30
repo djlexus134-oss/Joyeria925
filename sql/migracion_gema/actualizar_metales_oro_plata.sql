@@ -4,7 +4,7 @@
 -- No coincide "dorado", "color", etc. (usa espacios:  oro )
 --
 -- VPS:
---   source /etc/joyeria/env && export MYSQL_PWD="$DB_PASSWORD"
+--   source /etc/joyeria925/env && export MYSQL_PWD="$DB_PASSWORD"
 --   mariadb -u"$DB_USER" "$DB_NAME" < sql/migracion_gema/actualizar_metales_oro_plata.sql
 
 SET NAMES utf8mb4;

@@ -88,108 +88,130 @@ npm run build
 
 ---
 
-## Parte 1 — Datos del sistema anterior (Gema)
+## Parte 1 — Base de datos (sin migración Gema)
 
-**Recomendado si el dump completo al VPS falló o mezcló basura:** migrar solo datos Gema en Docker y subir un SQL pequeño.
+Este deploy **no** usa `sql/migracion_gema/` ni `import-datos-gema.sh`. Exporta un dump de tu entorno local (Docker) **sin** haber corrido `migracion_gema_docker.ps1`.
 
-Guía completa: **[sql/migracion_gema/MIGRACION_SOLO_DATOS.md](../sql/migracion_gema/MIGRACION_SOLO_DATOS.md)**
-
-Resumen:
+### 1.1 Exportar desde Docker (PC)
 
 ```powershell
-cd D:\PrograWEB\src\Joyeria\sql\migracion_gema
+cd D:\PrograWEB
+docker compose exec -T mariadb sh -c "mariadb-dump -uroot -prootpassword --single-transaction --routines --triggers joyeria" | Out-File -Encoding utf8 backup_joyeria925_produccion.sql
+```
+
+> Si tu BD local se llama `joyeria` pero en el VPS será `joyeria925`, adapta el nombre en el paso 2.5 (o renombra en el dump con `sed`).
+
+### 1.2 Subir al VPS
+
+```powershell
+scp D:\PrograWEB\backup_joyeria925_produccion.sql root@IP_VPS:/root/
+```
+
+### 1.3 Qué **no** hacer
+
+| Paso Gema (omitir) | Motivo |
+|--------------------|--------|
+| `migracion_gema_docker.ps1` | Solo legado Gema |
+| `export_datos_gema_vps.ps1` | Solo datos Gema |
+| `import-datos-gema.sh` en el VPS | Trunca tablas y carga Gema |
+| `sql/migracion_gema/zipgema_dump/` | Dumps del sistema anterior |
+
+Continúa en **Parte 2** (VPS): import con `import-database.sh`, plantilla de config y `run-sql-migrations.sh` si el dump local no trae los `.sql` más recientes.
+
+---
+
+## Anexo — Migración Gema (opcional, legado)
+
+Solo si en el futuro necesitas importar catálogo/stock del sistema **Gema** anterior. Guía: **[sql/migracion_gema/MIGRACION_SOLO_DATOS.md](../sql/migracion_gema/MIGRACION_SOLO_DATOS.md)**
+
+```powershell
+cd D:\PrograWEB\src\Joyeria925\sql\migracion_gema
 .\migracion_gema_docker.ps1 -Paso todo
 .\export_datos_gema_vps.ps1
 scp D:\PrograWEB\solo_datos_gema.sql root@IP_VPS:/root/
 ```
 
-En el VPS:
-
 ```bash
-bash /var/www/joyeria/deploy/scripts/import-datos-gema.sh /etc/joyeria/env /root/solo_datos_gema.sql
-mariadb -u joyeria_app -p joyeria < /root/restore_config.sql
+bash /var/www/joyeria925/deploy/scripts/import-datos-gema.sh /etc/joyeria925/env /root/solo_datos_gema.sql
+mariadb -u joyeria925_app -p joyeria925 < /root/restore_config.sql
 ```
 
 ---
 
-### Alternativa: dump completo de `joyeria`
-
-La migración del sistema anterior también puede exportarse como **dump entero** desde Docker (incluye config local — menos recomendado para producción).
-
-1. Sigue `sql/migracion_gema/00_staging_import.md` (scripts `migracion_gema_docker.ps1`).
-2. Cuando `joyeria` esté validada, genera un dump para producción:
-
-```powershell
-cd D:\PrograWEB
-docker compose exec -T mariadb sh -c "mariadb-dump -uroot -prootpassword --single-transaction --routines --triggers joyeria" | Out-File -Encoding utf8 backup_joyeria_produccion.sql
-```
-
-> No redirijas con `>` dentro del contenedor desde PowerShell sin cuidado; el script `backup_joyeria.ps1` del proyecto es la opción segura.
-
-3. Sube `backup_joyeria_produccion.sql` al VPS con `scp` (ver parte 2).
-
-En el VPS **no** necesitas los `.sql` de `zipgema_dump/`; solo el dump final + migraciones incrementales nuevas si las agregas después.
-
----
-
-## Parte 2 — VPS desde cero (terminal)
+## Parte 2 — VPS (terminal)
 
 Sustituye `tu-dominio.com` y credenciales reales.
 
-### 2.1 Conectar y usuario
+> **VPS con otro proyecto ya desplegado** (`/etc/joyeria`, `/var/www/joyeria`, BD `joyeria`): este repo usa rutas **distintas** (`/etc/joyeria925`, `/var/www/joyeria925`, BD `joyeria925`, usuario `joyeria925-deploy`). No ejecutes `vps-bootstrap.sh` completo si Nginx/MariaDB/PHP ya están instalados; crea solo el `env`, la BD nueva y clona el código.
+
+### 2.1 Conectar y usuario de deploy
 
 ```bash
 ssh root@IP_DEL_VPS
-adduser joyeria-deploy
-usermod -aG sudo joyeria-deploy
-rsync --archive --chown=joyeria-deploy:joyeria-deploy ~/.ssh /home/joyeria-deploy/
+adduser joyeria925-deploy
+usermod -aG sudo joyeria925-deploy
+rsync --archive --chown=joyeria925-deploy:joyeria925-deploy ~/.ssh /home/joyeria925-deploy/
 ```
 
 ### 2.2 Variables de entorno del servidor
 
 ```bash
-mkdir -p /etc/joyeria
-nano /etc/joyeria/env
+mkdir -p /etc/joyeria925
+nano /etc/joyeria925/env
 ```
 
 Contenido (basado en `deploy/env.example`):
 
 ```bash
 JOYERIA_DOMAIN=tu-dominio.com
-JOYERIA_WEB_ROOT=/var/www/joyeria
-JOYERIA_REPO=https://github.com/TU_USUARIO/joyeria.git
+JOYERIA_WEB_ROOT=/var/www/joyeria925
+JOYERIA_REPO=https://github.com/djlexus134-oss/Joyeria925.git
 JOYERIA_BRANCH=main
+JOYERIA_DEPLOY_USER=joyeria925-deploy
 
-DB_NAME=joyeria
-DB_USER=joyeria_app
+DB_NAME=joyeria925
+DB_USER=joyeria925_app
 DB_PASSWORD=password_largo_aleatorio
 ```
 
 ```bash
-chmod 600 /etc/joyeria/env
+chmod 600 /etc/joyeria925/env
 ```
 
 ### 2.3 Bootstrap (paquetes, MariaDB, firewall)
 
-Copia la carpeta `deploy` al VPS o clona el repo primero; luego:
+**VPS nuevo (sin Nginx/MariaDB):** clona el repo y ejecuta bootstrap completo:
 
 ```bash
 # Si aún no hay repo:
 apt-get update && apt-get install -y git
-git clone https://github.com/djlexus134-oss/joyeria.git /var/www/joyeria
+git clone https://github.com/djlexus134-oss/Joyeria925.git /var/www/joyeria925
 
-bash /var/www/joyeria/deploy/scripts/vps-bootstrap.sh /etc/joyeria/env
+bash /var/www/joyeria925/deploy/scripts/vps-bootstrap.sh /etc/joyeria925/env
+```
+
+**VPS que ya tiene el proyecto anterior** (`/etc/joyeria`, `/var/www/joyeria`): **no** ejecutes `vps-bootstrap.sh` (reinstalaría paquetes y podría tocar firewall). Solo crea la BD y el usuario nuevos:
+
+```bash
+source /etc/joyeria925/env
+mysql -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';"
+mysql -e "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';"
+mysql -e "FLUSH PRIVILEGES;"
+
+git clone https://github.com/djlexus134-oss/Joyeria925.git /var/www/joyeria925
+chown -R joyeria925-deploy:www-data /var/www/joyeria925
 ```
 
 ### 2.4 Configuración PHP de la app
 
 ```bash
-cd /var/www/joyeria
+cd /var/www/joyeria925
 cp config.example.php config.php
 nano config.php
 ```
 
-Ajusta `DBHOST`, `DBUSER`, `DBPASSWORD`, `DBNAME` (mismos que en `/etc/joyeria/env`) y SMTP.
+Ajusta `DBHOST`, `DBUSER`, `DBPASSWORD`, `DBNAME` (mismos que en `/etc/joyeria925/env`) y SMTP.
 
 En `config.php` define la zona horaria del negocio (evita que las fechas por defecto salgan un dia antes en UTC):
 
@@ -226,21 +248,30 @@ scp backup_joyeria_produccion.sql root@IP_DEL_VPS:/root/
 
 En el VPS:
 
+Si el dump local usa la BD `joyeria` pero en el VPS la nueva es `joyeria925`, adapta el nombre antes de importar:
+
 ```bash
-bash /var/www/joyeria/deploy/scripts/import-database.sh /etc/joyeria/env /root/backup_joyeria_produccion.sql
+sed 's/`joyeria`/`joyeria925`/g' /root/backup_joyeria_produccion.sql > /root/backup_joyeria925.sql
+bash /var/www/joyeria925/deploy/scripts/import-database.sh --recreate-db /etc/joyeria925/env /root/backup_joyeria925.sql
+```
+
+Si el dump ya coincide con `DB_NAME=joyeria925` en el env:
+
+```bash
+bash /var/www/joyeria925/deploy/scripts/import-database.sh /etc/joyeria925/env /root/backup_joyeria_produccion.sql
 ```
 
 Si el import falló a medias (p. ej. por collation), recrea la BD e importa de nuevo:
 
 ```bash
-bash /var/www/joyeria/deploy/scripts/import-database.sh --recreate-db /etc/joyeria/env /root/backup_joyeria_produccion.sql
+bash /var/www/joyeria925/deploy/scripts/import-database.sh --recreate-db /etc/joyeria925/env /root/backup_joyeria_produccion.sql
 ```
 
 **Error `Unknown collation: utf8mb4_0900_ai_ci`:** el dump viene de MySQL 8 (Docker) y el VPS usa MariaDB. El script `import-database.sh` convierte automáticamente a `utf8mb4_unicode_ci`. Alternativa manual:
 
 ```bash
-bash /var/www/joyeria/deploy/scripts/prepare-dump-for-mariadb.sh /root/backup_joyeria_produccion.sql /root/backup_mariadb.sql
-bash /var/www/joyeria/deploy/scripts/import-database.sh --recreate-db /etc/joyeria/env /root/backup_mariadb.sql
+bash /var/www/joyeria925/deploy/scripts/prepare-dump-for-mariadb.sh /root/backup_joyeria_produccion.sql /root/backup_mariadb.sql
+bash /var/www/joyeria925/deploy/scripts/import-database.sh --recreate-db /etc/joyeria925/env /root/backup_mariadb.sql
 ```
 
 Para futuros respaldos desde Docker, puedes exportar ya compatible:
@@ -264,23 +295,23 @@ Después de un import exitoso (`Import OK.`):
 
 ```bash
 # 1) Claves faltantes (solo inserta las que no existan)
-mariadb -u joyeria_app -p joyeria < /var/www/joyeria/sql/2026_05_20_configuracion_general_plantilla.sql
+mariadb -u joyeria925_app -p joyeria925 < /var/www/joyeria925/sql/2026_05_20_configuracion_general_plantilla.sql
 
 # 2) Tus valores de produccion (token, etc.) — copia y edita en el VPS:
-cp /var/www/joyeria/deploy/sql/restore_config_produccion.example.sql /root/restore_config.sql
+cp /var/www/joyeria925/deploy/sql/restore_config_produccion.example.sql /root/restore_config.sql
 nano /root/restore_config.sql
-mariadb -u joyeria_app -p joyeria < /root/restore_config.sql
+mariadb -u joyeria925_app -p joyeria925 < /root/restore_config.sql
 ```
 
 El token de `impresion_caja_token` debe ser **igual** en admin, `print-agent/config.json` y `print-agent-etiquetas/config.json` en la PC caja.
 
-Si importaste un dump **completo y actualizado** (post migración Gema), **no** ejecutes `run-sql-migrations.sh` salvo que hayas añadido archivos `.sql` nuevos después del dump.
-
-Solo para parches posteriores al dump:
+**Migraciones incrementales:** si tu dump local ya incluye todos los `.sql` de `sql/` (desarrollo al día), puedes omitir `run-sql-migrations.sh`. Si el dump es viejo o la BD local nunca aplicó parches recientes, ejecútalo:
 
 ```bash
-bash /var/www/joyeria/deploy/scripts/run-sql-migrations.sh /etc/joyeria/env
+bash /var/www/joyeria925/deploy/scripts/run-sql-migrations.sh /etc/joyeria925/env
 ```
+
+Algunos archivos pueden mostrar `WARN` si la tabla o clave ya existía; es normal. Si fallan muchos, revisa que el dump traiga el esquema base completo (no uses solo `run-sql-migrations.sh` en una BD vacía).
 
 ### 2.5b Dominio Hostinger → VPS externo
 
@@ -289,14 +320,14 @@ Si el dominio está en **Hostinger** y el VPS en **otro proveedor**, sigue la gu
 Resumen:
 
 1. En hPanel: registro **A** `@` y `www` → IP del VPS.
-2. En `/etc/joyeria/env`: `JOYERIA_DOMAIN` y `JOYERIA_VPS_IP`.
+2. En `/etc/joyeria925/env`: `JOYERIA_DOMAIN` y `JOYERIA_VPS_IP`.
 3. Scripts en el VPS (en orden):
 
 ```bash
-bash /var/www/joyeria/deploy/scripts/verify-dns.sh
-bash /var/www/joyeria/deploy/scripts/setup-domain.sh
-bash /var/www/joyeria/deploy/scripts/setup-ssl.sh
-bash /var/www/joyeria/deploy/scripts/validate-domain.sh
+bash /var/www/joyeria925/deploy/scripts/verify-dns.sh
+bash /var/www/joyeria925/deploy/scripts/setup-domain.sh
+bash /var/www/joyeria925/deploy/scripts/setup-ssl.sh
+bash /var/www/joyeria925/deploy/scripts/validate-domain.sh
 ```
 
 ### 2.6 Nginx (manual, alternativa a los scripts)
@@ -314,27 +345,27 @@ certbot --nginx -d plateria-el-angel.shop -d www.plateria-el-angel.shop
 ### 2.7 Desplegar / actualizar código
 
 ```bash
-bash /var/www/joyeria/deploy/scripts/deploy-release.sh /etc/joyeria/env
+bash /var/www/joyeria925/deploy/scripts/deploy-release.sh /etc/joyeria925/env
 ```
 
 Cada release futuro:
 
 ```bash
-bash /var/www/joyeria/deploy/scripts/deploy-release.sh /etc/joyeria/env
-bash /var/www/joyeria/deploy/scripts/run-sql-migrations.sh /etc/joyeria/env
+bash /var/www/joyeria925/deploy/scripts/deploy-release.sh /etc/joyeria925/env
+bash /var/www/joyeria925/deploy/scripts/run-sql-migrations.sh /etc/joyeria925/env
 ```
 
-**Error `fatal: detected dubious ownership`:** el clon lo hiciste como `root` pero `deploy-release.sh` ejecuta git como `joyeria-deploy`. Solución en el VPS:
+**Error `fatal: detected dubious ownership`:** el clon lo hiciste como `root` pero `deploy-release.sh` ejecuta git como `joyeria925-deploy`. Solución en el VPS:
 
 ```bash
-git config --system --add safe.directory /var/www/joyeria
-sudo -u joyeria-deploy git config --global --add safe.directory /var/www/joyeria
-chown -R joyeria-deploy:www-data /var/www/joyeria
-chmod 640 /var/www/joyeria/config.php
-bash /var/www/joyeria/deploy/scripts/deploy-release.sh /etc/joyeria/env
+git config --system --add safe.directory /var/www/joyeria925
+sudo -u joyeria925-deploy git config --global --add safe.directory /var/www/joyeria925
+chown -R joyeria925-deploy:www-data /var/www/joyeria925
+chmod 640 /var/www/joyeria925/config.php
+bash /var/www/joyeria925/deploy/scripts/deploy-release.sh /etc/joyeria925/env
 ```
 
-(`git config --global` solo como **root** no aplica al usuario `joyeria-deploy`.)
+(`git config --global` solo como **root** no aplica al usuario `joyeria925-deploy`.)
 
 ### 2.8 Token de impresión (obligatorio para agentes)
 
@@ -375,7 +406,7 @@ define('JOYERIA_APP_URL', 'https://plateria-el-angel.shop');
 **Opción B — tabla `configuracion_general`:**
 
 ```bash
-mariadb -u joyeria_app -p joyeria < /var/www/joyeria/sql/2026_05_21_smtp_config_plantilla.sql
+mariadb -u joyeria925_app -p joyeria925 < /var/www/joyeria925/sql/2026_05_21_smtp_config_plantilla.sql
 ```
 
 Luego actualiza las claves `smtp_*` y `app_url` (panel o SQL).
@@ -383,7 +414,7 @@ Luego actualiza las claves `smtp_*` y `app_url` (panel o SQL).
 **Probar envío en el VPS:**
 
 ```bash
-cd /var/www/joyeria
+cd /var/www/joyeria925
 composer install --no-dev --optimize-autoloader
 php deploy/scripts/test-mail.php tu-correo@gmail.com
 ```
@@ -409,9 +440,9 @@ El aviso de phishing de Hetzner sobre “cuenta suspendida” **no bloquea** tu 
 Si el webhook de Mercado Pago dejó logs bajo `uploads/tmp/`, **borra el archivo** y aplica Nginx + PHP actualizados:
 
 ```bash
-sudo rm -f /var/www/joyeria/uploads/tmp/joyeria_mp_webhook.log
-cd /var/www/joyeria && sudo -u joyeria-deploy git pull
-sudo bash /var/www/joyeria/deploy/scripts/apply-nginx-security.sh
+sudo rm -f /var/www/joyeria925/uploads/tmp/joyeria_mp_webhook.log
+cd /var/www/joyeria925 && sudo -u joyeria925-deploy git pull
+sudo bash /var/www/joyeria925/deploy/scripts/apply-nginx-security.sh
 # Reinicia PHP-FPM si cambiaste tienda_pago_webhook.php
 sudo systemctl reload php8.2-fpm || sudo systemctl reload php8.3-fpm
 ```
@@ -432,18 +463,18 @@ Debe ser `403` o `404`, no `200`.
 | SSH | Solo llaves; `PasswordAuthentication no` |
 | Firewall | `ufw` — solo 22, 80, 443 |
 | MariaDB | Solo `127.0.0.1`; no exponer 3306 |
-| Secretos | `config.php` y `/etc/joyeria/env` fuera de Git |
+| Secretos | `config.php` y `/etc/joyeria925/env` fuera de Git |
 | Backups | Cron diario: `mariadb-dump` + copia off-site |
 | Actualizaciones | `apt-get update && apt-get upgrade` mensual |
 
-Ejemplo backup cron (`/etc/cron.daily/joyeria-backup`):
+Ejemplo backup cron (`/etc/cron.daily/joyeria925-backup`):
 
 ```bash
 #!/bin/sh
-source /etc/joyeria/env
+source /etc/joyeria925/env
 export MYSQL_PWD="$DB_PASSWORD"
-mariadb-dump -u"$DB_USER" "$DB_NAME" | gzip > /var/backups/joyeria-$(date +%F).sql.gz
-find /var/backups -name 'joyeria-*.sql.gz' -mtime +14 -delete
+mariadb-dump -u"$DB_USER" "$DB_NAME" | gzip > /var/backups/joyeria925-$(date +%F).sql.gz
+find /var/backups -name 'joyeria925-*.sql.gz' -mtime +14 -delete
 ```
 
 ---
@@ -766,7 +797,7 @@ Instalacion manual (alternativa sin script): [NSSM](https://nssm.cc/download) co
 | Error GD / fuentes etiquetas | PHP sin `php-gd` o fuentes | `apt install php-gd fonts-dejavu-core` |
 | `Unknown collation utf8mb4_0900_ai_ci` | Dump MySQL 8 en MariaDB VPS | `import-database.sh` (convierte solo) o `--recreate-db` si falló a medias |
 | `Access denied ... SUPER` en trigger/vista | `DEFINER=root` en el dump | `git pull` + `import-database.sh` (quita DEFINER) o importar con usuario `root` solo en VPS |
-| `dubious ownership` en git | Repo clonado como `root`, script usa `joyeria-deploy` | Ver abajo |
+| `dubious ownership` en git | Repo clonado como `root`, script usa `joyeria925-deploy` | Ver abajo |
 
 ---
 
@@ -774,7 +805,7 @@ Instalacion manual (alternativa sin script): [NSSM](https://nssm.cc/download) co
 
 | Archivo | Uso |
 |---------|-----|
-| `env.example` | Plantilla `/etc/joyeria/env` |
+| `env.example` | Plantilla `/etc/joyeria925/env` |
 | `nginx/joyeria.conf` | Virtual host |
 | `scripts/vps-bootstrap.sh` | Instalación inicial VPS |
 | `scripts/deploy-release.sh` | Pull + composer + build KPI |

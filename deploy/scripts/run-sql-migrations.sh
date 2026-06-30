@@ -7,11 +7,11 @@
 # Úsalo solo para SQL nuevos creados DESPUÉS del dump.
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 
-WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria}"
+WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria925}"
 SQL_DIR="$WEB_ROOT/sql"
 
 DB_NAME="${DB_NAME:-joyeria}"

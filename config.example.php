@@ -17,10 +17,10 @@
  */
 define('DBDRIVER', 'mysql');
 define('DBHOST', 'localhost');
-define('DBUSER', 'cambiar_usuario_bd');
+define('DBUSER', 'joyeria925_app');
 define('DBPASSWORD', 'cambiar_contraseña_bd');
 define('DBPORT', '3306');
-define('DBNAME', 'joyeria');
+define('DBNAME', 'joyeria925');
 
 /*
  * Correo — PHPMailer (admin/includes/MailService.php).

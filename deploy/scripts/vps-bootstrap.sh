@@ -2,7 +2,7 @@
 # Instalación inicial del VPS (Ubuntu 22.04/24.04). Ejecutar como root una sola vez.
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Crea $ENV_FILE desde deploy/env.example y vuelve a ejecutar."
   exit 1
@@ -34,12 +34,12 @@ fi
 systemctl enable nginx mariadb php8.3-fpm
 systemctl start nginx mariadb php8.3-fpm
 
-# Usuario de despliegue
-id joyeria-deploy &>/dev/null || useradd -m -s /bin/bash joyeria-deploy
-usermod -aG www-data joyeria-deploy
+# Usuario de despliegue (distinto a joyeria-deploy si ya existe otro proyecto)
+DEPLOY_USER="${JOYERIA_DEPLOY_USER:-joyeria925-deploy}"
+id "$DEPLOY_USER" &>/dev/null || useradd -m -s /bin/bash "$DEPLOY_USER"
+usermod -aG www-data "$DEPLOY_USER"
 
 mkdir -p /var/www
-chown joyeria-deploy:www-data /var/www
 
 # Base de datos
 mysql -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -47,8 +47,8 @@ mysql -e "CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB
 mysql -e "GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';"
 mysql -e "FLUSH PRIVILEGES;"
 
-mkdir -p /etc/joyeria
-chmod 700 /etc/joyeria
+mkdir -p /etc/joyeria925
+chmod 700 /etc/joyeria925
 
 # Firewall
 ufw allow OpenSSH

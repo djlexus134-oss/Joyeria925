@@ -2,14 +2,14 @@
 # Instala Nginx para Joyería (solo HTTP). Ejecutar DESPUÉS de que DNS apunte al VPS.
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 
 DOMAIN="${JOYERIA_DOMAIN:?Define JOYERIA_DOMAIN en $ENV_FILE}"
-WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria}"
+WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria925}"
 TEMPLATE="${WEB_ROOT}/deploy/nginx/joyeria-http-init.conf"
-TARGET="/etc/nginx/sites-available/joyeria"
+TARGET="/etc/nginx/sites-available/joyeria925"
 
 if [[ ! -f "$TEMPLATE" ]]; then
   echo "No existe plantilla: $TEMPLATE"
@@ -30,7 +30,7 @@ sed -e "s|__DOMAIN__|${DOMAIN}|g" \
     -e "s|__PHP_FPM_SOCK__|${PHP_SOCK}|g" \
     "$TEMPLATE" >"$TARGET"
 
-ln -sf "$TARGET" /etc/nginx/sites-enabled/joyeria
+ln -sf "$TARGET" /etc/nginx/sites-enabled/joyeria925
 rm -f /etc/nginx/sites-enabled/default
 
 nginx -t

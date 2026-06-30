@@ -2,7 +2,7 @@
 # Verifica que el dominio resuelve a la IP esperada del VPS.
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 

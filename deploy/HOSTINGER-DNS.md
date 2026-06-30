@@ -6,7 +6,7 @@ Dominio registrado en **Hostinger**; aplicación en un **VPS de otro proveedor**
 
 En el panel de tu proveedor (Hetzner, DigitalOcean, etc.) copia la **IPv4 pública**.
 
-En `/etc/joyeria/env` del VPS:
+En `/etc/joyeria925/env` del VPS:
 
 ```bash
 JOYERIA_DOMAIN=tudominio.com
@@ -33,7 +33,7 @@ Guarda y espera propagación (suele ser 5–60 minutos).
 ## Paso 3 — Verificar DNS (en el VPS)
 
 ```bash
-bash /var/www/joyeria/deploy/scripts/verify-dns.sh
+bash /var/www/joyeria925/deploy/scripts/verify-dns.sh
 ```
 
 Desde tu PC (PowerShell con WSL o web): [dnschecker.org](https://dnschecker.org)
@@ -41,9 +41,9 @@ Desde tu PC (PowerShell con WSL o web): [dnschecker.org](https://dnschecker.org)
 ## Paso 4 — Nginx + HTTPS (en el VPS)
 
 ```bash
-bash /var/www/joyeria/deploy/scripts/setup-domain.sh
-bash /var/www/joyeria/deploy/scripts/setup-ssl.sh
-bash /var/www/joyeria/deploy/scripts/validate-domain.sh
+bash /var/www/joyeria925/deploy/scripts/setup-domain.sh
+bash /var/www/joyeria925/deploy/scripts/setup-ssl.sh
+bash /var/www/joyeria925/deploy/scripts/validate-domain.sh
 ```
 
 Define en env antes de SSL (opcional):

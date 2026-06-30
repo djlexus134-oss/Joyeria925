@@ -3,12 +3,12 @@
 # Convierte collations de MySQL 8 (utf8mb4_0900_*) a utf8mb4_unicode_ci si hace falta.
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 DUMP="${2:-}"
 RECREATE_DB=0
 
 usage() {
-  echo "Uso: $0 [--recreate-db] [/etc/joyeria/env] /ruta/backup_joyeria.sql"
+  echo "Uso: $0 [--recreate-db] [/etc/joyeria925/env] /ruta/backup_joyeria.sql"
   echo ""
   echo "  --recreate-db   Borra y recrea la BD antes de importar (recomendado si falló a medias)."
   exit 1
@@ -40,7 +40,7 @@ fi
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 
-DB_NAME="${DB_NAME:-joyeria}"
+DB_NAME="${DB_NAME:-joyeria925}"
 DB_USER="${DB_USER:-root}"
 DB_PASSWORD="${DB_PASSWORD:?}"
 MARIADB_COLLATION="${JOYERIA_DB_COLLATION:-utf8mb4_unicode_ci}"

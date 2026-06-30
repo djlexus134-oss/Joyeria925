@@ -86,9 +86,9 @@ scp D:\PrograWEB\solo_datos_gema.sql root@IP_VPS:/root/
 El VPS debe tener ya el **esquema** y tu `config.php`. Si acabas de importar un dump completo fallido, puedes limpiar solo tablas de datos antes:
 
 ```bash
-cd /var/www/joyeria
+cd /var/www/joyeria925
 git pull
-bash deploy/scripts/import-datos-gema.sh /etc/joyeria/env /root/solo_datos_gema.sql
+bash deploy/scripts/import-datos-gema.sh /etc/joyeria925/env /root/solo_datos_gema.sql
 ```
 
 Eso **no modifica** `configuracion_general`.
@@ -108,7 +108,7 @@ mariadb -u joyeria_app -p joyeria < /root/restore_config.sql
 ## Paso 7 — Comprobar
 
 ```bash
-source /etc/joyeria/env
+source /etc/joyeria925/env
 export MYSQL_PWD="$DB_PASSWORD"
 mariadb -u"$DB_USER" "$DB_NAME" -e "
 SELECT COUNT(*) AS stock FROM piezas_stock;

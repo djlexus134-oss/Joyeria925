@@ -2,11 +2,11 @@
 # Rutinas y tablas criticas para RH/contratos (ejecutar aunque run-sql-migrations falle a medias).
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 
-WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria}"
+WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria925}"
 DB_NAME="${DB_NAME:-joyeria}"
 DB_USER="${DB_USER:-joyeria_app}"
 DB_PASSWORD="${DB_PASSWORD:?}"

@@ -2,7 +2,7 @@
 <?php
 /**
  * Prueba envío SMTP. Uso en VPS:
- *   php /var/www/joyeria/deploy/scripts/test-mail.php tu@correo.com
+ *   php /var/www/joyeria925/deploy/scripts/test-mail.php tu@correo.com
  */
 declare(strict_types=1);
 

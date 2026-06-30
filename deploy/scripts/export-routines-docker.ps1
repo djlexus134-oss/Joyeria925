@@ -1,7 +1,7 @@
 # Exporta PROCEDIMIENTOS sp_* (sin sp_mig_*) desde Docker para MariaDB en VPS.
 # Uso: .\export-routines-docker.ps1
 #      scp D:\PrograWEB\joyeria_routines.sql root@VPS:/root/
-# VPS: bash deploy/scripts/run-sql-critical.sh /etc/joyeria/env
+# VPS: bash deploy/scripts/run-sql-critical.sh /etc/joyeria925/env
 
 param(
     [string]$ComposeDir = "D:\PrograWEB",

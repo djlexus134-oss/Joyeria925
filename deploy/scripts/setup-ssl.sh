@@ -2,12 +2,12 @@
 # Emite certificado Let's Encrypt con certbot (requiere DNS OK y Nginx HTTP activo).
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 
 DOMAIN="${JOYERIA_DOMAIN:?}"
-WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria}"
+WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria925}"
 EMAIL="${JOYERIA_SSL_EMAIL:-}"
 
 if ! command -v certbot >/dev/null 2>&1; then

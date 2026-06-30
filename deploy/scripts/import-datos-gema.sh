@@ -3,11 +3,11 @@
 # Trunca tablas de datos Gema y carga el export. Mantiene config y usuarios admin no incluidos en el SQL.
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 DUMP="${2:-}"
 
 if [[ -z "$DUMP" || ! -f "$DUMP" ]]; then
-  echo "Uso: $0 [/etc/joyeria/env] /root/solo_datos_gema.sql"
+  echo "Uso: $0 [/etc/joyeria925/env] /root/solo_datos_gema.sql"
   exit 1
 fi
 

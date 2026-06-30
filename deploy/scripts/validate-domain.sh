@@ -2,7 +2,7 @@
 # Comprueba que el dominio sirve web, admin y API de impresión.
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 
@@ -49,7 +49,7 @@ if [[ -n "$TOKEN" ]]; then
     fail=1
   fi
 else
-  echo "INFO  Define JOYERIA_CAJA_TOKEN en /etc/joyeria/env para probar API autenticada."
+  echo "INFO  Define JOYERIA_CAJA_TOKEN en /etc/joyeria925/env para probar API autenticada."
 fi
 
 if [[ $fail -ne 0 ]]; then

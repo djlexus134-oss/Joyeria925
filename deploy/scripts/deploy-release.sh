@@ -2,14 +2,14 @@
 # Actualiza código en el VPS (pull o clone), dependencias, build KPI, permisos.
 set -euo pipefail
 
-ENV_FILE="${1:-/etc/joyeria/env}"
+ENV_FILE="${1:-/etc/joyeria925/env}"
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 
-WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria}"
+WEB_ROOT="${JOYERIA_WEB_ROOT:-/var/www/joyeria925}"
 REPO="${JOYERIA_REPO:?Define JOYERIA_REPO en env}"
 BRANCH="${JOYERIA_BRANCH:-main}"
-DEPLOY_USER="${JOYERIA_DEPLOY_USER:-joyeria-deploy}"
+DEPLOY_USER="${JOYERIA_DEPLOY_USER:-joyeria925-deploy}"
 
 ensure_git_safe_directory() {
   git config --system --add safe.directory "$WEB_ROOT" 2>/dev/null || true
