@@ -10,6 +10,7 @@ use Mpdf\Mpdf;
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/contrato_laboral_config.php';
+require_once __DIR__ . '/joyeria_mpdf.php';
 
 class PDFGenerator
 {
@@ -51,18 +52,7 @@ class PDFGenerator
 
         $this->outputPath = rtrim($outputPath, '/') . '/';
 
-        // Configurar mPDF con configuración mínima que funciona
-        // Evitar ConfigVariables y FontVariables que intenta cargar DejaVu
-        $this->mpdf = new Mpdf([
-            'mode' => 'utf-8',
-            'format' => 'A4',
-            'margin_left' => 15,
-            'margin_right' => 15,
-            'margin_top' => 20,
-            'margin_bottom' => 15,
-            'margin_header' => 10,
-            'margin_footer' => 10,
-        ]);
+        $this->mpdf = $this->crearInstanciaMpdf();
 
         // Información del documento
         $this->mpdf->SetAuthor('Sistema Joyería');
@@ -79,22 +69,27 @@ class PDFGenerator
     }
 
     /**
+     * Instancia mPDF con tempDir escribible (uploads/tmp/mpdf), no vendor/mpdf/tmp.
+     */
+    private function crearInstanciaMpdf(): Mpdf
+    {
+        return joyeria_mpdf_crear('A4', [
+            'margin_left' => 15,
+            'margin_right' => 15,
+            'margin_top' => 20,
+            'margin_bottom' => 15,
+            'margin_header' => 10,
+            'margin_footer' => 10,
+        ]);
+    }
+
+    /**
      * Reinicializa la instancia de mPDF
      * Útil después de generar un PDF para limpiar el estado
      */
     private function reinicializarMpdf() {
         try {
-            // Configuración mínima que funciona sin intentar cargar fuentes personalizadas
-            $this->mpdf = new Mpdf([
-                'mode' => 'utf-8',
-                'format' => 'A4',
-                'margin_left' => 15,
-                'margin_right' => 15,
-                'margin_top' => 20,
-                'margin_bottom' => 15,
-                'margin_header' => 10,
-                'margin_footer' => 10,
-            ]);
+            $this->mpdf = $this->crearInstanciaMpdf();
 
             $this->mpdf->SetAuthor('Sistema Joyería');
             $this->mpdf->SetCreator('Sistema Joyería');
