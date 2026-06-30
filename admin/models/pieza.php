@@ -1740,9 +1740,19 @@ class Pieza extends Sistema
                         $precioCelda = null;
                     }
                 } else {
-                    $precioCelda = isset($item['precio']) && (float) $item['precio'] > 0
-                        ? (string) round((float) $item['precio'], 2)
-                        : null;
+                    // directo: precio_es_final=true → PV ya calculado (catalogo uniforme o modo grilla);
+                    // precio_es_final=false → el valor es costo por fila y aplica aumento_pct de la grilla.
+                    if (isset($item['precio']) && (float) $item['precio'] > 0) {
+                        $rawPrecio = (float) $item['precio'];
+                        if (!empty($item['precio_es_final'])) {
+                            $precioCelda = (string) round($rawPrecio, 2);
+                        } else {
+                            $precioCalc = $this->calcularPrecioVentaAjustado($rawPrecio, $aumentoPctGrilla);
+                            $precioCelda = $this->normalizarDecimal($precioCalc, 2);
+                        }
+                    } else {
+                        $precioCelda = null;
+                    }
                 }
                 for ($k = 0; $k < $cant; $k++) {
                     $unidades[] = [

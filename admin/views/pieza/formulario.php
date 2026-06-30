@@ -288,7 +288,12 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                                 <i class="bi bi-tag"></i>
                                 Precio de venta calculado:
                                 <strong>$<span id="preview-precio-venta">0.00</span></strong>
-                                <span style="opacity:0.8;">(costo $<span id="preview-costo">0.00</span> &middot; aumento <span id="preview-aumento">0</span>%)</span>
+                            </p>
+                            <p style="margin:4px 0 0;opacity:0.88;font-size:0.92rem;">
+                                Costo $<span id="preview-costo">0.00</span>
+                                + aumento <span id="preview-aumento">0</span>%
+                                → $<span id="preview-precio-bruto">0.00</span>
+                                <span style="opacity:0.75;"> (redondeo al siguiente múltiplo de $5)</span>
                             </p>
                         </div>
                         <div class="alert-message warning" id="aviso-costo-desde-grilla" style="display:none;margin-top:6px;">
@@ -430,7 +435,7 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                                 </label>
                                 <label style="display:inline-flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;">
                                     <input type="radio" name="grilla_metodo_radio" value="directo">
-                                    Precio directo por fila
+                                    Costo por medida/fila (+ margen del modal)
                                 </label>
                                 <label style="display:inline-flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer;">
                                     <input type="radio" name="grilla_metodo_radio" value="por_gramo">
@@ -461,14 +466,22 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                     <div class="alert-message info" id="modal-precio-info-normal" style="margin:6px 0 14px;">
                         <p style="margin:0;">
                             <i class="bi bi-info-circle"></i>
-                            Se asignara <strong>$<span id="modal-precio-venta">0.00</span></strong> como precio de venta a cada unidad
-                            (costo $<span id="modal-costo">0.00</span> + aumento <span id="modal-aumento">0</span>%).
+                            Se asignará <strong>$<span id="modal-precio-venta">0.00</span></strong> como precio de venta a cada unidad.
+                        </p>
+                        <p style="margin:4px 0 0;opacity:0.88;font-size:0.92rem;">
+                            Costo $<span id="modal-costo">0.00</span>
+                            + aumento <span id="modal-aumento">0</span>%
+                            → $<span id="modal-precio-bruto">0.00</span>
+                            <span style="opacity:0.75;"> (redondeo al siguiente múltiplo de $5)</span>
                         </p>
                     </div>
                     <div class="alert-message success" id="modal-precio-info-grilla" style="margin:6px 0 14px;display:none;">
                         <p style="margin:0;">
                             <i class="bi bi-grid-3x3-gap"></i>
-                            El precio de venta de cada unidad se calculará desde la grilla (precio por fila, o peso × precio/gramo + aumento indicado arriba).
+                            Precios por variante con margen del modal (<span id="modal-grilla-aumento-label">0</span>%):
+                        </p>
+                        <p style="margin:4px 0 0;font-size:0.92rem;" id="modal-grilla-resumen-precios">
+                            Genera la grilla para ver el desglose costo → precio de venta por medida.
                         </p>
                     </div>
 
@@ -754,10 +767,12 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                 var previewCosto = document.getElementById('preview-costo');
                 var previewAumento = document.getElementById('preview-aumento');
                 var previewPv = document.getElementById('preview-precio-venta');
+                var previewBruto = document.getElementById('preview-precio-bruto');
 
                 var modalCosto = document.getElementById('modal-costo');
                 var modalAumento = document.getElementById('modal-aumento');
                 var modalPv = document.getElementById('modal-precio-venta');
+                var modalBruto = document.getElementById('modal-precio-bruto');
 
                 function metodoActual() {
                     for (var i = 0; i < radiosMetodo.length; i++) {
@@ -795,17 +810,24 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
 
                     var aum = parseFloat(aumentoInput.value);
                     if (!isFinite(aum) || aum < 0) { aum = 0; }
-                    var pv = costoNum * (1 + aum / 100);
+                    var pvBruto = costoNum * (1 + aum / 100);
+                    var pv = pvBruto;
                     if (pv > 0) {
                         pv = Math.ceil(pv / 5) * 5;
                     }
 
                     if (previewCosto) { previewCosto.textContent = fmt(costoNum); }
                     if (previewAumento) { previewAumento.textContent = (aum % 1 === 0 ? aum.toFixed(0) : fmt(aum)); }
+                    if (previewBruto) { previewBruto.textContent = fmt(pvBruto); }
                     if (previewPv) { previewPv.textContent = fmt(pv); }
                     if (modalCosto) { modalCosto.textContent = fmt(costoNum); }
                     if (modalAumento) { modalAumento.textContent = (aum % 1 === 0 ? aum.toFixed(0) : fmt(aum)); }
+                    if (modalBruto) { modalBruto.textContent = fmt(pvBruto); }
                     if (modalPv) { modalPv.textContent = fmt(pv); }
+
+                    if (typeof window.joyeriaActualizarPreviewsGrillaPieza === 'function') {
+                        window.joyeriaActualizarPreviewsGrillaPieza();
+                    }
                 }
 
                 function aplicarMetodo() {
@@ -1004,6 +1026,28 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                         return aum % 1 === 0 ? aum.toFixed(0) : aum.toFixed(2);
                     }
 
+                    function calcularPrecioBrutoDesdeCosto(costoNum) {
+                        var aum = aumentoPctParaCalculo();
+                        if (!isFinite(costoNum) || costoNum <= 0) { return 0; }
+                        return Math.round(costoNum * (1 + aum / 100) * 100) / 100;
+                    }
+
+                    function textoPreviewPrecioConMargen(costoNum) {
+                        if (!isFinite(costoNum) || costoNum <= 0) { return '—'; }
+                        var aum = formatearAumentoPct(aumentoPctParaCalculo());
+                        var bruto = calcularPrecioBrutoDesdeCosto(costoNum);
+                        var pv = calcularPrecioVentaDesdeCosto(costoNum);
+                        if (Math.abs(bruto - pv) < 0.001) {
+                            return '$' + costoNum.toFixed(2) + ' + ' + aum + '% → $' + pv.toFixed(2);
+                        }
+                        return '$' + costoNum.toFixed(2) + ' + ' + aum + '% → $' + bruto.toFixed(2) + ' → $' + pv.toFixed(2);
+                    }
+
+                    function textoPreviewPrecioFinal(valorNum) {
+                        if (!isFinite(valorNum) || valorNum <= 0) { return '—'; }
+                        return '$' + valorNum.toFixed(2) + ' (precio final, sin margen adicional)';
+                    }
+
                     function sincronizarAumentoModalDesdeFormulario() {
                         var mainAum = document.getElementById('aumento_pct');
                         if (inputStockAumento && mainAum) {
@@ -1016,7 +1060,9 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                         var aum = aumentoPctParaCalculo();
                         var modalAumentoEl = document.getElementById('modal-aumento');
                         var modalPvEl = document.getElementById('modal-precio-venta');
+                        var modalBrutoEl = document.getElementById('modal-precio-bruto');
                         var modalCostoEl = document.getElementById('modal-costo');
+                        var modalGrillaAumLabel = document.getElementById('modal-grilla-aumento-label');
                         var costoInput = document.getElementById('costo');
                         var costoNum = costoInput ? parseFloat(costoInput.value) : 0;
                         if (!isFinite(costoNum) || costoNum < 0) { costoNum = 0; }
@@ -1024,13 +1070,21 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                         if (modalAumentoEl) {
                             modalAumentoEl.textContent = formatearAumentoPct(aum);
                         }
+                        if (modalGrillaAumLabel) {
+                            modalGrillaAumLabel.textContent = formatearAumentoPct(aum);
+                        }
                         if (modalCostoEl) {
                             modalCostoEl.textContent = costoNum > 0 ? costoNum.toFixed(2) : '0.00';
+                        }
+                        if (modalBrutoEl) {
+                            var bruto = calcularPrecioBrutoDesdeCosto(costoNum);
+                            modalBrutoEl.textContent = bruto > 0 ? bruto.toFixed(2) : '0.00';
                         }
                         if (modalPvEl) {
                             var pv = calcularPrecioVentaDesdeCosto(costoNum);
                             modalPvEl.textContent = pv > 0 ? pv.toFixed(2) : '0.00';
                         }
+                        actualizarTodasPreviewsGrilla();
                     }
 
                     function aplicarAumentoModalAlFormulario() {
@@ -1056,12 +1110,96 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                             if (!inpPeso || !spanCalc) { return; }
                             var p = parseFloat(inpPeso.value);
                             if (isFinite(pg) && pg > 0 && isFinite(p) && p > 0) {
-                                spanCalc.textContent = '$' + calcularPrecioVentaDesdeCosto(p * pg).toFixed(2);
+                                spanCalc.textContent = textoPreviewPrecioConMargen(p * pg);
                             } else {
                                 spanCalc.textContent = '—';
                             }
                         });
                     }
+
+                    function actualizarPreciosCalculadosGrillaDirecto() {
+                        if (grillaMetodoActual() !== 'directo' || !wrapMatriz) { return; }
+                        var esGrillaPrecio = modoPrecioActual() === 'grilla';
+                        wrapMatriz.querySelectorAll('.matriz-celda-precio').forEach(function (inp) {
+                            var tr = inp.closest('tr');
+                            if (!tr) { return; }
+                            var spanCalc = tr.querySelector('.matriz-precio-calculado');
+                            if (!spanCalc) { return; }
+                            var c = parseFloat(inp.value);
+                            if (esGrillaPrecio) {
+                                spanCalc.textContent = textoPreviewPrecioFinal(c);
+                            } else if (isFinite(c) && c > 0) {
+                                spanCalc.textContent = textoPreviewPrecioConMargen(c);
+                            } else {
+                                spanCalc.textContent = '—';
+                            }
+                        });
+                    }
+
+                    function actualizarPreciosCatalogoUniformeGrilla() {
+                        if (grillaMetodoActual() !== 'catalogo_uniforme' || !wrapMatriz) { return; }
+                        var costoCat = costoCatalogoActualNum();
+                        var texto = textoPreviewPrecioConMargen(costoCat);
+                        wrapMatriz.querySelectorAll('.matriz-precio-catalogo').forEach(function (span) {
+                            span.textContent = texto;
+                        });
+                        var thCat = wrapMatriz.querySelector('.matriz-th-catalogo-uniforme');
+                        if (thCat) {
+                            thCat.textContent = costoCat > 0 ? textoPreviewPrecioConMargen(costoCat) : 'Precio catálogo (completa costo y aumento arriba)';
+                        }
+                    }
+
+                    function actualizarResumenGrillaModal() {
+                        var resumen = document.getElementById('modal-grilla-resumen-precios');
+                        if (!resumen || !wrapMatriz) { return; }
+                        var metodo = grillaMetodoActual();
+                        var filas = [];
+                        wrapMatriz.querySelectorAll('tr[data-valor1]').forEach(function (tr) {
+                            var labelEl = tr.querySelector('td strong');
+                            var label = labelEl ? String(labelEl.textContent || '').trim() : 'Variante';
+                            if (metodo === 'por_gramo') {
+                                var inpPeso = tr.querySelector('.matriz-celda-peso');
+                                var pg = inputGrillaPgr ? parseFloat(inputGrillaPgr.value) : 0;
+                                var p = inpPeso ? parseFloat(inpPeso.value) : 0;
+                                if (isFinite(pg) && pg > 0 && isFinite(p) && p > 0) {
+                                    filas.push('<strong>' + label + ':</strong> ' + textoPreviewPrecioConMargen(p * pg));
+                                }
+                            } else if (metodo === 'directo') {
+                                var inpPrecio = tr.querySelector('.matriz-celda-precio');
+                                var c = inpPrecio ? parseFloat(inpPrecio.value) : 0;
+                                if (isFinite(c) && c > 0) {
+                                    if (modoPrecioActual() === 'grilla') {
+                                        filas.push('<strong>' + label + ':</strong> ' + textoPreviewPrecioFinal(c));
+                                    } else {
+                                        filas.push('<strong>' + label + ':</strong> ' + textoPreviewPrecioConMargen(c));
+                                    }
+                                }
+                            } else if (metodo === 'catalogo_uniforme') {
+                                var costoCat = costoCatalogoActualNum();
+                                if (costoCat > 0) {
+                                    filas.push('<strong>' + label + ':</strong> ' + textoPreviewPrecioConMargen(costoCat));
+                                }
+                            }
+                        });
+                        if (filas.length === 0) {
+                            if (metodo === 'catalogo_uniforme') {
+                                resumen.textContent = 'Completa costo y aumento en el formulario; la grilla usará el mismo precio de venta para todas las medidas.';
+                            } else {
+                                resumen.textContent = 'Genera la grilla e indica costos, pesos o precios por fila para ver el desglose.';
+                            }
+                            return;
+                        }
+                        resumen.innerHTML = filas.join('<br>');
+                    }
+
+                    function actualizarTodasPreviewsGrilla() {
+                        actualizarPreciosCatalogoUniformeGrilla();
+                        actualizarPreciosCalculadosGrillaPorGramo();
+                        actualizarPreciosCalculadosGrillaDirecto();
+                        actualizarResumenGrillaModal();
+                    }
+
+                    window.joyeriaActualizarPreviewsGrillaPieza = actualizarTodasPreviewsGrilla;
 
                     function deshabilitarCamposCosto() {
                         var ids = ['peso_gr', 'precio_por_gramo', 'costo'];
@@ -1376,22 +1514,27 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                             thPrecio.style.minWidth = '90px';
                             headRow.appendChild(thPrecio);
                             var thCalc = document.createElement('th');
-                            thCalc.textContent = 'Precio venta';
-                            thCalc.style.minWidth = '90px';
+                            thCalc.textContent = 'Precio con margen';
+                            thCalc.style.minWidth = '220px';
                             thCalc.style.color = '#7a6523';
                             headRow.appendChild(thCalc);
                         } else if (metodoGen === 'catalogo_uniforme') {
-                            // No se agrega columna de precio; el precio viene del formulario
                             var thInfo = document.createElement('th');
-                            var pvSpanCfg = document.getElementById('preview-precio-venta');
-                            var pvLabel = pvSpanCfg ? pvSpanCfg.textContent : '—';
-                            thInfo.textContent = 'Precio: $' + pvLabel + ' (catálogo)';
+                            thInfo.className = 'matriz-th-catalogo-uniforme';
                             thInfo.style.color = '#1f7a4d';
+                            thInfo.style.minWidth = '220px';
+                            thInfo.textContent = 'Precio catálogo (completa costo y aumento arriba)';
                             headRow.appendChild(thInfo);
                         } else {
-                            thPrecio.textContent = 'Precio ($)';
+                            var esGrillaPrecio = modoPrecioActual() === 'grilla';
+                            thPrecio.textContent = esGrillaPrecio ? 'Precio venta ($)' : 'Costo ($)';
                             thPrecio.style.minWidth = '90px';
                             headRow.appendChild(thPrecio);
+                            var thCalcDirecto = document.createElement('th');
+                            thCalcDirecto.textContent = esGrillaPrecio ? 'Vista previa' : 'Precio con margen';
+                            thCalcDirecto.style.minWidth = '220px';
+                            thCalcDirecto.style.color = '#7a6523';
+                            headRow.appendChild(thCalcDirecto);
                         }
                         thead.appendChild(headRow);
                         table.appendChild(thead);
@@ -1440,44 +1583,73 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                                 spanCalc.className = 'matriz-precio-calculado';
                                 var pesoInit = prevPesos[String(fila.id)] || 0;
                                 if (pesoInit > 0 && isFinite(ppgGlobal) && ppgGlobal > 0) {
-                                    spanCalc.textContent = '$' + calcularPrecioVentaDesdeCosto(pesoInit * ppgGlobal).toFixed(2);
+                                    spanCalc.textContent = textoPreviewPrecioConMargen(pesoInit * ppgGlobal);
                                 } else {
                                     spanCalc.textContent = '—';
                                 }
-                                spanCalc.style.cssText = 'font-size:0.9rem;color:#7a6523;font-weight:600;';
+                                spanCalc.style.cssText = 'font-size:0.88rem;color:#7a6523;font-weight:600;';
                                 inpPeso.addEventListener('input', (function (sp) {
                                     return function () {
                                         var pg = inputGrillaPgr ? parseFloat(inputGrillaPgr.value) : 0;
                                         var p = parseFloat(this.value);
                                         if (isFinite(pg) && pg > 0 && isFinite(p) && p > 0) {
-                                            sp.textContent = '$' + calcularPrecioVentaDesdeCosto(p * pg).toFixed(2);
+                                            sp.textContent = textoPreviewPrecioConMargen(p * pg);
                                         } else {
                                             sp.textContent = '—';
                                         }
+                                        actualizarResumenGrillaModal();
                                     };
                                 })(spanCalc));
                                 tdCalc.appendChild(spanCalc);
                                 tr.appendChild(tdCalc);
                             } else if (metodoGen === 'catalogo_uniforme') {
-                                // No se muestra input de precio; precio viene del formulario principal
                                 var tdInfoPrecio = document.createElement('td');
-                                tdInfoPrecio.style.color = '#1f7a4d';
-                                tdInfoPrecio.style.fontWeight = '600';
-                                tdInfoPrecio.textContent = '—';
+                                var spanCat = document.createElement('span');
+                                spanCat.className = 'matriz-precio-catalogo';
+                                spanCat.style.cssText = 'font-size:0.88rem;color:#1f7a4d;font-weight:600;';
+                                spanCat.textContent = '—';
+                                tdInfoPrecio.appendChild(spanCat);
                                 tr.appendChild(tdInfoPrecio);
                             } else {
-                                // Precio directo column
+                                // Costo por fila (catalogo) o precio venta final (modo grilla)
+                                var esGrillaPrecio = modoPrecioActual() === 'grilla';
                                 var tdPrecio = document.createElement('td');
                                 var inpPrecio = document.createElement('input');
                                 inpPrecio.type = 'number';
                                 inpPrecio.className = 'form-input matriz-celda-precio';
                                 inpPrecio.min = '0';
                                 inpPrecio.step = '0.01';
-                                inpPrecio.placeholder = 'Precio';
+                                inpPrecio.placeholder = esGrillaPrecio ? 'Precio venta' : 'Costo';
                                 inpPrecio.setAttribute('data-valor1', String(fila.id));
                                 inpPrecio.value = prevPrecios[String(fila.id)] ? String(prevPrecios[String(fila.id)]) : '';
                                 tdPrecio.appendChild(inpPrecio);
                                 tr.appendChild(tdPrecio);
+
+                                var tdCalcDirecto = document.createElement('td');
+                                var spanCalcDirecto = document.createElement('span');
+                                spanCalcDirecto.className = 'matriz-precio-calculado';
+                                var costoInit = prevPrecios[String(fila.id)] || 0;
+                                if (costoInit > 0) {
+                                    spanCalcDirecto.textContent = esGrillaPrecio
+                                        ? textoPreviewPrecioFinal(costoInit)
+                                        : textoPreviewPrecioConMargen(costoInit);
+                                } else {
+                                    spanCalcDirecto.textContent = '—';
+                                }
+                                spanCalcDirecto.style.cssText = 'font-size:0.88rem;color:#7a6523;font-weight:600;';
+                                inpPrecio.addEventListener('input', (function (sp, esFinal) {
+                                    return function () {
+                                        var c = parseFloat(this.value);
+                                        if (isFinite(c) && c > 0) {
+                                            sp.textContent = esFinal ? textoPreviewPrecioFinal(c) : textoPreviewPrecioConMargen(c);
+                                        } else {
+                                            sp.textContent = '—';
+                                        }
+                                        actualizarResumenGrillaModal();
+                                    };
+                                })(spanCalcDirecto, esGrillaPrecio));
+                                tdCalcDirecto.appendChild(spanCalcDirecto);
+                                tr.appendChild(tdCalcDirecto);
                             }
 
                             tbody.appendChild(tr);
@@ -1486,6 +1658,7 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                         wrapMatriz.innerHTML = '';
                         wrapMatriz.appendChild(table);
                         recalcularTotalMatriz();
+                        actualizarTodasPreviewsGrilla();
                     }
 
                     function recopilarMatriz() {
@@ -1539,7 +1712,8 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                                         valor2_id: v2,
                                         cantidad: cant,
                                         precio: precio,
-                                        metodo_celda: 'directo'
+                                        metodo_celda: 'directo',
+                                        precio_es_final: modoPrecioActual() === 'grilla'
                                     });
                                 }
                             });
@@ -1717,20 +1891,33 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                             if (hintUniforme) { hintUniforme.style.display = metodo === 'catalogo_uniforme' ? '' : 'none'; }
                             if (wrapMatriz) { wrapMatriz.innerHTML = ''; }
                             recalcularTotalMatriz();
+                            actualizarResumenPrecioModal();
                         });
                     });
 
                     if (inputGrillaPgr) {
-                        inputGrillaPgr.addEventListener('input', actualizarPreciosCalculadosGrillaPorGramo);
+                        inputGrillaPgr.addEventListener('input', function () {
+                            actualizarPreciosCalculadosGrillaPorGramo();
+                            actualizarResumenGrillaModal();
+                        });
                     }
                     if (inputStockAumento) {
                         ['input', 'change'].forEach(function (evt) {
                             inputStockAumento.addEventListener(evt, function () {
                                 actualizarResumenPrecioModal();
-                                actualizarPreciosCalculadosGrillaPorGramo();
                             });
                         });
                     }
+
+                    ['costo', 'aumento_pct', 'peso_gr', 'precio_por_gramo'].forEach(function (fieldId) {
+                        var fieldEl = document.getElementById(fieldId);
+                        if (!fieldEl) { return; }
+                        ['input', 'change'].forEach(function (evt) {
+                            fieldEl.addEventListener(evt, function () {
+                                actualizarResumenPrecioModal();
+                            });
+                        });
+                    });
 
                     btnConfirmar.addEventListener('click', function () {
                         var modo = selModo ? selModo.value : 'ninguna';
@@ -1770,7 +1957,8 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                                                 valor2_id: v2,
                                                 cantidad: cant,
                                                 precio: pvCatalogo,
-                                                metodo_celda: 'directo'
+                                                metodo_celda: 'directo',
+                                                precio_es_final: true
                                             });
                                         }
                                     });
@@ -1812,12 +2000,14 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
                                         alert('Todas las filas deben tener un precio mayor a $0 cuando el modo es "precio por variante".');
                                         return;
                                     } else {
-                                        if (!confirm('Algunas filas no tienen precio.\n\nSe usará el precio calculado de la pieza (costo + aumento) para esas filas.\n\n¿Continuar?')) {
+                                        if (!confirm('Algunas filas no tienen costo.\n\nSe usará el precio calculado de la pieza (costo + aumento) para esas filas.\n\n¿Continuar?')) {
                                             return;
                                         }
                                     }
                                 }
-                                deshabilitarCamposCosto();
+                                if (modoPrecioActual() === 'grilla') {
+                                    deshabilitarCamposCosto();
+                                }
                                 if (hiddenGrillaMetodo) { hiddenGrillaMetodo.value = metodoGrilla; }
                             }
                             matriz.forEach(function (c) { totalUnidades += c.cantidad; });

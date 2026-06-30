@@ -203,6 +203,7 @@ require_once (__DIR__ . "/views/header.php");
                                         'metodo_celda' => $metodoCelda,
                                         'peso_gr' => $pesoGrCelda,
                                         'precio_por_gramo' => $ppgCelda,
+                                        'precio_es_final' => !empty($item['precio_es_final']),
                                     ];
                                     $totalVariantes += $cant;
                                 }
