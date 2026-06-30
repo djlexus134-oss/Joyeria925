@@ -929,7 +929,6 @@ class Pieza extends Sistema
         $peso = $calculo['peso'];
         $precioPorGramo = $calculo['precio_por_gramo'];
         $costo = $calculo['costo'];
-        $aumentoPct = $this->calcularAumentoPctEfectivo($costo, $aumentoPct);
 
         $db = $this->getDb();
         $db->beginTransaction();
@@ -1018,7 +1017,16 @@ class Pieza extends Sistema
         $peso = $calculo['peso'];
         $precioPorGramo = $calculo['precio_por_gramo'];
         $costo = $calculo['costo'];
-        $aumentoPct = $this->calcularAumentoPctEfectivo($costo, $aumentoPct);
+
+        $costoPrevio = $pieza['costo'] !== null && $pieza['costo'] !== '' ? (float) $pieza['costo'] : null;
+        $costoNuevo = $costo !== null && $costo !== '' ? (float) $costo : null;
+        $cambioCosto = ($costoPrevio === null) !== ($costoNuevo === null)
+            || ($costoPrevio !== null && $costoNuevo !== null && abs($costoPrevio - $costoNuevo) > 0.0001);
+
+        $aumentoPrevio = $pieza['aumento_pct'] !== null && $pieza['aumento_pct'] !== '' ? (float) $pieza['aumento_pct'] : null;
+        $aumentoNuevo = $aumentoPct !== null ? (float) $aumentoPct : null;
+        $cambioAumento = ($aumentoPrevio === null) !== ($aumentoNuevo === null)
+            || ($aumentoPrevio !== null && $aumentoNuevo !== null && abs($aumentoPrevio - $aumentoNuevo) > 0.0001);
 
         $db = $this->getDb();
         $db->beginTransaction();
@@ -1049,7 +1057,7 @@ class Pieza extends Sistema
             $stmt->bindValue(':id_proveedor_FK', $idProveedor, $idProveedor === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
             $stmt->bindValue(':id_tienda_FK', $idTienda, PDO::PARAM_INT);
             $stmt->bindValue(':peso_gr', $peso, $peso === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
-            $stmt->bindValue(':costo', $costo, PDO::PARAM_STR);
+            $stmt->bindValue(':costo', $costo, $costo === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':precio_por_gramo', $precioPorGramo, $precioPorGramo === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':aumento_pct', $aumentoPct, $aumentoPct === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':largo', $largo, $largo === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
@@ -1058,27 +1066,23 @@ class Pieza extends Sistema
             $stmt->bindValue(':id_pieza', (int) $idPieza, PDO::PARAM_INT);
             $stmt->execute();
 
-            $costoPrevio = $pieza['costo'] !== null ? (string) $pieza['costo'] : null;
-            $aumentoPrevio = $pieza['aumento_pct'] !== null ? (string) $pieza['aumento_pct'] : null;
-            $cambioCosto = $costoPrevio === null || abs((float) $costoPrevio - (float) $costo) > 0.0001;
-            $cambioAumento = ($aumentoPrevio === null && $aumentoPct !== null)
-                || ($aumentoPrevio !== null && $aumentoPct === null)
-                || ($aumentoPrevio !== null && $aumentoPct !== null && abs((float) $aumentoPrevio - (float) $aumentoPct) > 0.0001);
-
             $stocksRecalculados = 0;
             if ($cambioCosto || $cambioAumento) {
                 $precioVenta = $this->calcularPrecioVenta($costo, $aumentoPct);
-                $stmtRecalc = $db->prepare(
-                    "UPDATE piezas_stock
-                     SET precio_venta = :precio_venta
-                     WHERE id_pieza_FK = :id_pieza
-                       AND activo = 1
-                       AND estado IN ('disponible','apartada')"
-                );
-                $stmtRecalc->bindValue(':precio_venta', $precioVenta, PDO::PARAM_STR);
-                $stmtRecalc->bindValue(':id_pieza', (int) $idPieza, PDO::PARAM_INT);
-                $stmtRecalc->execute();
-                $stocksRecalculados = $stmtRecalc->rowCount();
+                if ($precioVenta !== null) {
+                    $stmtRecalc = $db->prepare(
+                        "UPDATE piezas_stock
+                         SET precio_venta = :precio_venta
+                         WHERE id_pieza_FK = :id_pieza
+                           AND activo = 1
+                           AND estado IN ('disponible','apartada')
+                           AND variante_valor1_id IS NULL"
+                    );
+                    $stmtRecalc->bindValue(':precio_venta', $precioVenta, PDO::PARAM_STR);
+                    $stmtRecalc->bindValue(':id_pieza', (int) $idPieza, PDO::PARAM_INT);
+                    $stmtRecalc->execute();
+                    $stocksRecalculados = $stmtRecalc->rowCount();
+                }
             }
 
             $huboCambioImagen = false;
@@ -1100,7 +1104,32 @@ class Pieza extends Sistema
             }
 
             $db->commit();
-            return $stmt->rowCount() > 0 || $huboCambioImagen || $stocksRecalculados > 0;
+
+            $huboCambiosDatos = $cambioCosto || $cambioAumento
+                || trim((string) ($pieza['desc_pieza'] ?? '')) !== $descripcion
+                || (int) ($pieza['id_sub_familia_FK'] ?? 0) !== $idSubfamilia
+                || (int) ($pieza['id_metal_FK'] ?? 0) !== $idMetal
+                || (int) ($pieza['id_tienda_FK'] ?? 0) !== $idTienda
+                || (int) ($pieza['id_proveedor_FK'] ?? 0) !== (int) ($idProveedor ?? 0)
+                || trim((string) ($pieza['observaciones'] ?? '')) !== trim((string) ($observaciones ?? ''))
+                || trim((string) ($pieza['largo'] ?? '')) !== trim((string) ($largo ?? ''))
+                || trim((string) ($pieza['ancho'] ?? '')) !== trim((string) ($ancho ?? ''));
+
+            $pesoPrevio = $pieza['peso_gr'] !== null && $pieza['peso_gr'] !== '' ? (float) $pieza['peso_gr'] : null;
+            $pesoNuevo = $peso !== null && $peso !== '' ? (float) $peso : null;
+            if (($pesoPrevio === null) !== ($pesoNuevo === null)
+                || ($pesoPrevio !== null && $pesoNuevo !== null && abs($pesoPrevio - $pesoNuevo) > 0.0001)) {
+                $huboCambiosDatos = true;
+            }
+
+            $ppgPrevio = $pieza['precio_por_gramo'] !== null && $pieza['precio_por_gramo'] !== '' ? (float) $pieza['precio_por_gramo'] : null;
+            $ppgNuevo = $precioPorGramo !== null && $precioPorGramo !== '' ? (float) $precioPorGramo : null;
+            if (($ppgPrevio === null) !== ($ppgNuevo === null)
+                || ($ppgPrevio !== null && $ppgNuevo !== null && abs($ppgPrevio - $ppgNuevo) > 0.0001)) {
+                $huboCambiosDatos = true;
+            }
+
+            return $huboCambiosDatos || $stocksRecalculados > 0 || $huboCambioImagen;
         } catch (Exception $e) {
             if ($db->inTransaction()) {
                 $db->rollBack();
@@ -1602,25 +1631,6 @@ class Pieza extends Sistema
             $valor = 0.01;
         }
         return (float) $valor;
-    }
-
-    private function calcularAumentoPctEfectivo($costo, $aumentoPct)
-    {
-        if ($aumentoPct === null) {
-            return null;
-        }
-        if ($costo === null) {
-            return $this->normalizarDecimal($aumentoPct, 2);
-        }
-
-        $costoNum = (float) $costo;
-        if ($costoNum <= 0) {
-            return $this->normalizarDecimal($aumentoPct, 2);
-        }
-
-        $precioVentaAjustado = $this->calcularPrecioVentaAjustado($costoNum, $aumentoPct);
-        $aumentoEfectivo = (($precioVentaAjustado / $costoNum) - 1) * 100;
-        return $this->normalizarDecimal($aumentoEfectivo, 2);
     }
 
     private function generarCodigoAuxiliar($idPieza)
