@@ -2715,3 +2715,127 @@ body.has-promo-bar-inferior {
         letter-spacing: 0.1em;
     }
 }
+
+/* Página pública móvil: depósito SPEI (QR escaneado desde POS) */
+.spei-deposito-body {
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(165deg, #f8f6f2 0%, #ebe6dc 100%);
+    color: #1a1a1a;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.spei-deposito-page {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 1.25rem 1rem 2rem;
+}
+.spei-deposito-header {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+.spei-deposito-marca {
+    margin: 0 0 0.35rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #666;
+}
+.spei-deposito-header h1 {
+    margin: 0 0 0.5rem;
+    font-size: 1.35rem;
+    font-weight: 600;
+}
+.spei-deposito-lead {
+    margin: 0;
+    font-size: 0.92rem;
+    color: #555;
+    line-height: 1.45;
+}
+.spei-deposito-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 1.1rem 1.15rem;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+    margin-bottom: 1rem;
+}
+.spei-deposito-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.spei-deposito-row:last-of-type {
+    border-bottom: 0;
+}
+.spei-deposito-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #777;
+}
+.spei-deposito-value {
+    font-size: 1rem;
+    line-height: 1.4;
+    word-break: break-word;
+}
+.spei-deposito-clabe {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 1.08rem;
+    letter-spacing: 0.06em;
+}
+.spei-deposito-monto {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1a5c3a;
+}
+.spei-deposito-instrucciones {
+    margin: 0.75rem 0 0;
+    font-size: 0.88rem;
+    color: #666;
+    line-height: 1.45;
+}
+.spei-deposito-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+.spei-deposito-actions .btn-action-primary,
+.spei-deposito-actions .btn-action-secondary {
+    width: 100%;
+    justify-content: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.spei-deposito-actions .is-copied {
+    opacity: 0.88;
+}
+.spei-deposito-promo {
+    background: #1a1a1a;
+    color: #f5f5f5;
+    border-radius: 14px;
+    padding: 1.15rem 1.2rem;
+    text-align: center;
+}
+.spei-deposito-promo h2 {
+    margin: 0 0 0.45rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+.spei-deposito-promo p {
+    margin: 0 0 0.85rem;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.45;
+}
+.spei-deposito-promo-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-decoration: none;
+}
+.spei-deposito-alert {
+    margin-bottom: 1rem;
+}

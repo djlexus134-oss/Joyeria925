@@ -81,4 +81,63 @@ class SpeiDepositoPayloadBuilder
 
         return implode("\n", $lineas);
     }
+
+    /**
+     * Raíz pública del sitio (sin /admin). Prefiere JOYERIA_APP_URL.
+     */
+    public static function resolverBaseUrlPublica(): string
+    {
+        if (defined('JOYERIA_APP_URL') && trim((string) JOYERIA_APP_URL) !== '') {
+            return rtrim((string) JOYERIA_APP_URL, '/');
+        }
+
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+            || (isset($_SERVER['SERVER_PORT']) && (string) $_SERVER['SERVER_PORT'] === '443');
+        $scheme = $https ? 'https' : 'http';
+        $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+
+        $scriptName = isset($_SERVER['SCRIPT_NAME']) ? str_replace('\\', '/', (string) $_SERVER['SCRIPT_NAME']) : '';
+        $dir = $scriptName !== '' ? dirname($scriptName) : '';
+        $path = '';
+        if ($dir !== '' && $dir !== '.' && $dir !== '/') {
+            $path = rtrim($dir, '/');
+        }
+
+        return $scheme . '://' . $host . $path;
+    }
+
+    public static function normalizarReferenciaUrl(string $referencia): string
+    {
+        $referencia = trim($referencia);
+        if ($referencia === '') {
+            return 'VENTA';
+        }
+        $referencia = preg_replace('/[^A-Za-z0-9_-]/', '', $referencia) ?? '';
+        if ($referencia === '') {
+            return 'VENTA';
+        }
+
+        return mb_substr($referencia, 0, 64);
+    }
+
+    /**
+     * URL HTTPS para el QR (página móvil spei_deposito.php).
+     */
+    public static function construirUrlPaginaDeposito(
+        string $baseUrl,
+        float $monto,
+        ?string $referencia = null
+    ): string {
+        $baseUrl = rtrim($baseUrl, '/');
+        $monto = max(0, round($monto, 2));
+        $referencia = self::normalizarReferenciaUrl((string) ($referencia ?? ''));
+
+        $query = http_build_query([
+            'm' => number_format($monto, 2, '.', ''),
+            'r' => $referencia,
+        ], '', '&', PHP_QUERY_RFC3986);
+
+        return $baseUrl . '/spei_deposito.php?' . $query;
+    }
 }

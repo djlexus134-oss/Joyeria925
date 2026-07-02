@@ -2601,6 +2601,13 @@ table.matriz-variantes-table .matriz-celda-cantidad {
 .pos-spei-modal-actions .btn-action-primary.is-copied {
     opacity: 0.85;
 }
+.pos-spei-qr-error {
+    font-size: 0.88rem;
+    text-align: center;
+    max-width: 220px;
+    margin-left: auto;
+    margin-right: auto;
+}
 
 /* Vista previa barra ticker en formulario de banners */
 .promo-ticker-bar--preview {

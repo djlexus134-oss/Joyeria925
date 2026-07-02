@@ -131,6 +131,7 @@ class ConfiguracionGeneral extends Sistema
             'clabe' => $clabe,
             'instrucciones' => trim((string) ($map['spei_instrucciones'] ?? '')),
             'referencia_prefijo' => trim((string) ($map['spei_referencia_prefijo'] ?? 'VENTA')) ?: 'VENTA',
+            'url_base' => SpeiDepositoPayloadBuilder::resolverBaseUrlPublica(),
         ];
     }
 

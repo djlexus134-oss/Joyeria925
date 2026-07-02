@@ -7,9 +7,11 @@
     var config = null;
     var referenciaActual = '';
     var textoActual = '';
+    var urlQrActual = '';
     var btnQr = null;
     var modal = null;
     var canvas = null;
+    var qrWrap = null;
     var resumenEl = null;
     var btnCopiarClabe = null;
     var btnCopiarTodo = null;
@@ -59,6 +61,17 @@
             lineas.push('Instrucciones: ' + config.instrucciones);
         }
         return lineas.join('\n');
+    }
+
+    function construirUrlQr(monto, referencia) {
+        var base = String((config && config.url_base) || '').replace(/\/+$/, '');
+        if (!base) {
+            return '';
+        }
+        var params = new URLSearchParams();
+        params.set('m', Math.max(0, monto).toFixed(2));
+        params.set('r', referencia);
+        return base + '/spei_deposito.php?' + params.toString();
     }
 
     function construirHtmlResumen(monto, referencia) {
@@ -152,9 +165,37 @@
         document.body.removeChild(ta);
     }
 
+    function limpiarErrorQr() {
+        if (!qrWrap) {
+            return;
+        }
+        var err = qrWrap.querySelector('.pos-spei-qr-error');
+        if (err) {
+            err.remove();
+        }
+    }
+
+    function mostrarErrorQr(msg) {
+        limpiarErrorQr();
+        if (!qrWrap) {
+            return;
+        }
+        var el = document.createElement('p');
+        el.className = 'pos-spei-qr-error alert-message error';
+        el.style.margin = '0.5rem 0 0';
+        el.textContent = msg;
+        qrWrap.appendChild(el);
+    }
+
     function generarQr(texto) {
-        if (!canvas || typeof global.QRCode === 'undefined') {
-            return Promise.resolve();
+        limpiarErrorQr();
+        if (!canvas) {
+            mostrarErrorQr('No se encontró el lienzo del código QR.');
+            return Promise.reject(new Error('Canvas missing'));
+        }
+        if (typeof global.QRCode === 'undefined' || typeof global.QRCode.toCanvas !== 'function') {
+            mostrarErrorQr('No se cargó la librería QR. Recarga la página (F5).');
+            return Promise.reject(new Error('QRCode missing'));
         }
         return new Promise(function (resolve, reject) {
             global.QRCode.toCanvas(canvas, texto, {
@@ -163,6 +204,7 @@
                 errorCorrectionLevel: 'M'
             }, function (err) {
                 if (err) {
+                    mostrarErrorQr('No se pudo generar el código QR.');
                     reject(err);
                     return;
                 }
@@ -181,15 +223,18 @@
         }
         referenciaActual = construirReferencia();
         textoActual = construirTexto(monto, referenciaActual);
+        urlQrActual = construirUrlQr(monto, referenciaActual);
         if (resumenEl) {
             resumenEl.innerHTML = construirHtmlResumen(monto, referenciaActual);
         }
-        generarQr(textoActual)
-            .catch(function () {
-                if (resumenEl) {
-                    resumenEl.insertAdjacentHTML('beforeend', '<p class="text-muted">No se pudo generar el codigo QR.</p>');
-                }
-            })
+        if (!urlQrActual) {
+            mostrarErrorQr('Falta la URL pública del sitio (JOYERIA_APP_URL en config.php).');
+            if (typeof modal.showModal === 'function') {
+                modal.showModal();
+            }
+            return;
+        }
+        generarQr(urlQrActual)
             .finally(function () {
                 if (typeof modal.showModal === 'function') {
                     modal.showModal();
@@ -212,6 +257,7 @@
         btnQr = document.getElementById('btn_mostrar_qr_spei');
         modal = document.getElementById('modal-spei-deposito');
         canvas = document.getElementById('spei-qr-canvas');
+        qrWrap = document.getElementById('spei-qr-canvas-wrap');
         resumenEl = document.getElementById('spei-datos-resumen');
         btnCopiarClabe = document.getElementById('btn-spei-copiar-clabe');
         btnCopiarTodo = document.getElementById('btn-spei-copiar-todo');
