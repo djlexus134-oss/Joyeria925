@@ -71,9 +71,13 @@ class Variantes extends Sistema
         $stmt->execute();
 
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        if ($rows !== [] && $this->tipoEsTalla($idTipo)) {
+        if ($rows !== []) {
             require_once __DIR__ . '/../../includes/variantes_stock_helpers.php';
-            return joyeria_ordenar_filas_variante_por_talla($rows);
+            if ($this->tipoEsTalla($idTipo)) {
+                return joyeria_ordenar_filas_variante_por_talla($rows);
+            }
+
+            return joyeria_ordenar_filas_variante_natural($rows);
         }
 
         return $rows;

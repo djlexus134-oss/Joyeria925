@@ -258,6 +258,28 @@ function joyeria_ordenar_filas_variante_por_talla(array $filas): array
     return $filas;
 }
 
+/**
+ * Ordena filas de variante_valores por su columna valor de menor a mayor,
+ * usando orden natural (ej. medidas "40cm" < "45cm" < "50cm").
+ *
+ * @param list<array<string, mixed>> $filas
+ * @return list<array<string, mixed>>
+ */
+function joyeria_ordenar_filas_variante_natural(array $filas): array
+{
+    if ($filas === []) {
+        return $filas;
+    }
+    usort($filas, static function (array $a, array $b): int {
+        $va = isset($a['valor']) ? trim((string) $a['valor']) : '';
+        $vb = isset($b['valor']) ? trim((string) $b['valor']) : '';
+
+        return strnatcasecmp($va, $vb);
+    });
+
+    return $filas;
+}
+
 function joyeria_sql_join_variantes_stock(string $alias = 'ps'): string
 {
     return "
