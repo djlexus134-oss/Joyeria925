@@ -937,20 +937,40 @@ if ($id_familia_FK === '' && $id_sub_familia_FK !== '') {
 
                     function actualizarOpcionCatalogoUniforme() {
                         var esGrilla = modoPrecioActual() === 'grilla';
+                        var esCatalogo = !esGrilla;
+                        var radioDirecto = document.querySelector('input[name="grilla_metodo_radio"][value="directo"]');
+                        var radioPorGramo = document.querySelector('input[name="grilla_metodo_radio"][value="por_gramo"]');
+                        var labelDirecto = radioDirecto ? radioDirecto.closest('label') : null;
+                        var labelPorGramo = radioPorGramo ? radioPorGramo.closest('label') : null;
+                        var radioUniforme = labelGrillaCatalogoUniforme
+                            ? labelGrillaCatalogoUniforme.querySelector('input[value="catalogo_uniforme"]')
+                            : null;
+
                         if (labelGrillaCatalogoUniforme) {
                             labelGrillaCatalogoUniforme.style.display = esGrilla ? 'none' : '';
-                            var radioUniforme = labelGrillaCatalogoUniforme.querySelector('input[value="catalogo_uniforme"]');
-                            if (radioUniforme) {
-                                radioUniforme.disabled = esGrilla;
-                                // Si estaba seleccionado y ahora se deshabilita, cambiar a directo
-                                if (esGrilla && radioUniforme.checked) {
-                                    var radioDirecto = document.querySelector('input[name="grilla_metodo_radio"][value="directo"]');
-                                    if (radioDirecto) {
-                                        radioDirecto.checked = true;
-                                        radioDirecto.dispatchEvent(new Event('change'));
-                                    }
-                                }
-                            }
+                        }
+                        if (radioUniforme) {
+                            radioUniforme.disabled = esGrilla;
+                        }
+                        if (labelDirecto) {
+                            labelDirecto.style.display = esCatalogo ? 'none' : '';
+                        }
+                        if (radioDirecto) {
+                            radioDirecto.disabled = esCatalogo;
+                        }
+                        if (labelPorGramo) {
+                            labelPorGramo.style.display = esCatalogo ? 'none' : '';
+                        }
+                        if (radioPorGramo) {
+                            radioPorGramo.disabled = esCatalogo;
+                        }
+
+                        if (esCatalogo && radioUniforme && !radioUniforme.checked) {
+                            radioUniforme.checked = true;
+                            radioUniforme.dispatchEvent(new Event('change'));
+                        } else if (esGrilla && radioUniforme && radioUniforme.checked && radioDirecto) {
+                            radioDirecto.checked = true;
+                            radioDirecto.dispatchEvent(new Event('change'));
                         }
                     }
 
