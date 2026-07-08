@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $estadoPos = $estado ?? [];
 $detalles = isset($estadoPos['detalles']) && is_array($estadoPos['detalles']) ? $estadoPos['detalles'] : [];
 $ultimaLinea = !empty($detalles) ? $detalles[count($detalles) - 1] : null;

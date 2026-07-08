@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/../models/metales.php';
 

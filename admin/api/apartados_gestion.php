@@ -1,11 +1,9 @@
-﻿<?php
+<?php
 
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/../models/apartado_gestion.php';
 require_once __DIR__ . '/../models/ventas.php';
 require_once __DIR__ . '/../includes/ImpresionTicketHelper.php';
-
-header('Content-Type: application/json; charset=utf-8');
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $app = new ApartadoGestion();

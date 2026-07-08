@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../../sistema.class.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/ventas.php';
+require_once __DIR__ . '/../includes/ReglasDescuentoService.php';
 
 /**
  * Cambio de pieza en apartado con credito no reembolsable (1 linea: nuevo apartado)
@@ -21,16 +22,81 @@ class ApartadoCambio extends Sistema
         return number_format(round($ajustado, $decimales), $decimales, '.', '');
     }
 
-    private function precioApartadoConDescuentoCliente(float $precioVenta, int $idCliente): string
-    {
+    private function precioApartadoConDescuentoCliente(
+        float $precioVenta,
+        int $idCliente,
+        int $idMetal = 0,
+        array $piezasJoyasContexto = []
+    ): string {
         if ($precioVenta <= 0) {
             return '0.00';
         }
-        $ventas = new Ventas();
-        $pct = $ventas->resolverDescuentoPorcentajeLinea('joya', $idCliente > 0 ? $idCliente : null);
-        $precioFinal = max(0.0, $precioVenta * (1.0 - ($pct / 100.0)));
 
-        return $this->normalizarDecimal($precioFinal);
+        if ($piezasJoyasContexto === []) {
+            $piezasJoyasContexto = [
+                [
+                    'precio_venta' => $precioVenta,
+                    'id_metal_FK' => $idMetal,
+                ],
+            ];
+        }
+
+        $lineas = (new ReglasDescuentoService())->calcularLineasJoyasDocumento(
+            $piezasJoyasContexto,
+            $idCliente > 0 ? $idCliente : null
+        );
+        $idx = count($piezasJoyasContexto) - 1;
+        $precioFinal = isset($lineas[$idx]) ? (float) ($lineas[$idx]['precio_final'] ?? $precioVenta) : $precioVenta;
+
+        return $this->normalizarDecimal(max(0.0, $precioFinal));
+    }
+
+    /**
+     * @return list<array{precio_venta: float, id_metal_FK: int}>
+     */
+    private function armarContextoReemplazoPiezaApartado(
+        PDO $db,
+        int $idApartado,
+        int $idDetalleReemplazar,
+        float $precioNuevo,
+        int $idMetalNuevo
+    ): array {
+        $contexto = [];
+        $st = $db->prepare(
+            'SELECT ad.id_apartado_detalle, ps.precio_venta, p.id_metal_FK
+             FROM apartado_detalle ad
+             INNER JOIN piezas_stock ps ON ps.id_pieza_stock = ad.id_pieza_stock_FK
+             INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
+             WHERE ad.id_apartado_FK = :id
+             ORDER BY ad.id_apartado_detalle ASC'
+        );
+        $st->bindValue(':id', $idApartado, PDO::PARAM_INT);
+        $st->execute();
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $idDet = (int) ($row['id_apartado_detalle'] ?? 0);
+            if ($idDet === $idDetalleReemplazar) {
+                if ($precioNuevo > 0) {
+                    $contexto[] = [
+                        'precio_venta' => $precioNuevo,
+                        'id_metal_FK' => $idMetalNuevo,
+                    ];
+                }
+                continue;
+            }
+            $pu = (float) ($row['precio_venta'] ?? 0);
+            if ($pu <= 0) {
+                continue;
+            }
+            $contexto[] = [
+                'precio_venta' => $pu,
+                'id_metal_FK' => (int) ($row['id_metal_FK'] ?? 0),
+            ];
+        }
+
+        return $contexto;
     }
 
     public function obtenerIdFormaPagoCreditoInterno(PDO $db): int
@@ -331,7 +397,7 @@ class ApartadoCambio extends Sistema
             }
 
             $stPsN = $db->prepare(
-                'SELECT ps.*, p.id_tienda_FK AS id_tienda_pieza
+                'SELECT ps.*, p.id_tienda_FK AS id_tienda_pieza, p.id_metal_FK
                  FROM piezas_stock ps
                  INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
                  WHERE ps.id_pieza_stock = :id FOR UPDATE'
@@ -354,7 +420,19 @@ class ApartadoCambio extends Sistema
                 throw new InvalidArgumentException('La pieza nueva no tiene precio de venta valido.');
             }
             $idClienteApr = (int) ($ap['id_cliente_FK'] ?? 0);
-            $precioNuevoStr = $this->precioApartadoConDescuentoCliente((float) $precioNuevoStr, $idClienteApr);
+            $contexto = $this->armarContextoReemplazoPiezaApartado(
+                $db,
+                $idApartado,
+                $idDetalle,
+                (float) $precioNuevoStr,
+                (int) ($psNueva['id_metal_FK'] ?? 0)
+            );
+            $precioNuevoStr = $this->precioApartadoConDescuentoCliente(
+                (float) $precioNuevoStr,
+                $idClienteApr,
+                (int) ($psNueva['id_metal_FK'] ?? 0),
+                $contexto
+            );
 
             $updPsO = $db->prepare("UPDATE piezas_stock SET estado = 'disponible' WHERE id_pieza_stock = :id");
             $updPsO->bindValue(':id', $idPiezaOrigen, PDO::PARAM_INT);
@@ -535,7 +613,7 @@ class ApartadoCambio extends Sistema
             }
 
             $stPsN = $db->prepare(
-                'SELECT ps.*, p.id_tienda_FK AS id_tienda_pieza
+                'SELECT ps.*, p.id_tienda_FK AS id_tienda_pieza, p.id_metal_FK
                  FROM piezas_stock ps
                  INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
                  WHERE ps.id_pieza_stock = :id FOR UPDATE'
@@ -567,7 +645,11 @@ class ApartadoCambio extends Sistema
                 throw new InvalidArgumentException('La pieza nueva no tiene precio de venta valido.');
             }
             $idClienteApr = (int) ($apOrigen['id_cliente_FK'] ?? 0);
-            $precioNuevoStr = $this->precioApartadoConDescuentoCliente($precioLista, $idClienteApr);
+            $precioNuevoStr = $this->precioApartadoConDescuentoCliente(
+                $precioLista,
+                $idClienteApr,
+                (int) ($psNueva['id_metal_FK'] ?? 0)
+            );
             $precioNuevo = (float) $precioNuevoStr;
 
             if ($credito - $precioNuevo > 0.02) {

@@ -18,6 +18,7 @@ function api_json_body(): array
 
 function api_ok(array $data = [], int $status = 200): void
 {
+    joyeria_json_clean_buffer();
     http_response_code($status);
     echo json_encode(array_merge(['success' => true], $data), JSON_UNESCAPED_UNICODE);
     exit;
@@ -25,6 +26,7 @@ function api_ok(array $data = [], int $status = 200): void
 
 function api_fail(string $message, int $status = 400, array $extra = []): void
 {
+    joyeria_json_clean_buffer();
     http_response_code($status);
     echo json_encode(array_merge(['success' => false, 'error' => $message], $extra), JSON_UNESCAPED_UNICODE);
     exit;

@@ -23,6 +23,7 @@ $fechaFin = joyeria_form_date_value(
 $idPieza = $_POST['id_pieza_FK'] ?? ($esEdicion ? ($promocion['id_pieza_FK'] ?? '') : '');
 $idSubfamilia = $_POST['id_subfamilia_FK'] ?? ($esEdicion ? ($promocion['id_subfamilia_FK'] ?? '') : '');
 $idFamilia = $_POST['id_familia_FK'] ?? ($esEdicion ? ($promocion['id_familia_FK'] ?? '') : '');
+$idMetal = $_POST['id_metal_FK'] ?? ($esEdicion ? ($promocion['id_metal_FK'] ?? '') : '');
 $aplicaTodasFamilias = isset($_POST['aplica_todas_familias'])
     ? ((string) $_POST['aplica_todas_familias'] !== '' && (string) $_POST['aplica_todas_familias'] !== '0')
     : ($esEdicion && !empty($promocion['aplica_todas_familias']));
@@ -130,6 +131,19 @@ $observaciones = $_POST['observaciones'] ?? ($esEdicion ? ($promocion['observaci
                             <option value="<?php echo (int) $familia['id_familia']; ?>"
                                 <?php echo ((string) $idFamilia === (string) $familia['id_familia']) ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars((string) $familia['nom_familia']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="id_metal_FK"><i class="bi bi-gem"></i> Metal:</label>
+                    <select class="form-input promo-alcance-select" name="id_metal_FK" id="id_metal_FK" <?php echo $aplicaTodasFamilias ? 'disabled' : ''; ?>>
+                        <option value="">-- Sin metal específico --</option>
+                        <?php foreach (($catalogos['metales'] ?? []) as $metal): ?>
+                            <option value="<?php echo (int) $metal['id_metal']; ?>"
+                                <?php echo ((string) $idMetal === (string) $metal['id_metal']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars((string) $metal['nom_metal']); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

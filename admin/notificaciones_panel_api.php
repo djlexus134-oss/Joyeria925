@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/includes/joyeria_json_guard.php';
+joyeria_json_guard_begin();
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/NotificacionService.php';
 
@@ -8,7 +10,8 @@ header('Content-Type: application/json; charset=utf-8');
 
 function joyeria_notif_out(array $data): void
 {
-    echo json_encode($data);
+    joyeria_json_clean_buffer();
+    echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
 }
 

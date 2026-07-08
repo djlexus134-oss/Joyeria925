@@ -161,6 +161,7 @@ class Insumos extends Sistema
         $aum = $this->validarDecimalOpcionalRango($data, 'aumento_pct', 'El aumento', 0, 10000);
         $pvp = $this->validarDecimalOpcional($data, 'precio_venta_sugerido', 'El precio de venta sugerido');
         $obs = $this->validarTextoOpcional($data, 'observaciones', 500);
+        $promo = $this->validarPromoCantidad($data);
 
         $existenciasPost = isset($data['existencia']) && is_array($data['existencia']) ? $data['existencia'] : [];
 
@@ -169,8 +170,9 @@ class Insumos extends Sistema
         try {
             $stmt = $db->prepare(
                 'INSERT INTO insumos
-                (nombre, id_categoria_FK, sku_codigo, costo_referencia, aumento_pct, precio_venta_sugerido, observaciones, activo)
-                VALUES (:nombre, :id_cat, NULL, :costo, :aum, :pvp, :obs, 1)'
+                (nombre, id_categoria_FK, sku_codigo, costo_referencia, aumento_pct, precio_venta_sugerido, observaciones,
+                 promo_paga_unidades, promo_lleva_unidades, activo)
+                VALUES (:nombre, :id_cat, NULL, :costo, :aum, :pvp, :obs, :promo_paga, :promo_lleva, 1)'
             );
             $stmt->bindValue(':nombre', $nombre, PDO::PARAM_STR);
             $stmt->bindValue(':id_cat', $idCategoria, $idCategoria === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
@@ -178,6 +180,8 @@ class Insumos extends Sistema
             $stmt->bindValue(':aum', $aum, $aum === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':pvp', $pvp, $pvp === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':obs', $obs, $obs === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':promo_paga', $promo['paga'], $promo['paga'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+            $stmt->bindValue(':promo_lleva', $promo['lleva'], $promo['lleva'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
             $stmt->execute();
 
             $id = (int) $db->lastInsertId();
@@ -208,6 +212,7 @@ class Insumos extends Sistema
         $aum = $this->validarDecimalOpcionalRango($data, 'aumento_pct', 'El aumento', 0, 10000);
         $pvp = $this->validarDecimalOpcional($data, 'precio_venta_sugerido', 'El precio de venta sugerido');
         $obs = $this->validarTextoOpcional($data, 'observaciones', 500);
+        $promo = $this->validarPromoCantidad($data);
         $existenciasPost = isset($data['existencia']) && is_array($data['existencia']) ? $data['existencia'] : [];
 
         $db = $this->getDb();
@@ -222,7 +227,8 @@ class Insumos extends Sistema
 
             $stmt = $db->prepare(
                 'UPDATE insumos SET nombre = :nombre, id_categoria_FK = :id_cat, sku_codigo = :sku,
-                 costo_referencia = :costo, aumento_pct = :aum, precio_venta_sugerido = :pvp, observaciones = :obs
+                 costo_referencia = :costo, aumento_pct = :aum, precio_venta_sugerido = :pvp, observaciones = :obs,
+                 promo_paga_unidades = :promo_paga, promo_lleva_unidades = :promo_lleva
                  WHERE id_insumo = :id AND activo = 1'
             );
             $stmt->bindValue(':nombre', $nombre, PDO::PARAM_STR);
@@ -232,6 +238,8 @@ class Insumos extends Sistema
             $stmt->bindValue(':aum', $aum, $aum === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':pvp', $pvp, $pvp === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindValue(':obs', $obs, $obs === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':promo_paga', $promo['paga'], $promo['paga'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+            $stmt->bindValue(':promo_lleva', $promo['lleva'], $promo['lleva'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
             $stmt->bindValue(':id', $idInsumo, PDO::PARAM_INT);
             $stmt->execute();
 
@@ -609,5 +617,27 @@ class Insumos extends Sistema
         $ins->execute();
 
         return (int) $db->lastInsertId();
+    }
+
+    /**
+     * @return array{paga: ?int, lleva: ?int}
+     */
+    private function validarPromoCantidad(array $data): array
+    {
+        $paga = isset($data['promo_paga_unidades']) && trim((string) $data['promo_paga_unidades']) !== ''
+            ? (int) $data['promo_paga_unidades']
+            : null;
+        $lleva = isset($data['promo_lleva_unidades']) && trim((string) $data['promo_lleva_unidades']) !== ''
+            ? (int) $data['promo_lleva_unidades']
+            : null;
+
+        if ($paga === null && $lleva === null) {
+            return ['paga' => null, 'lleva' => null];
+        }
+        if ($paga === null || $lleva === null || $paga <= 0 || $lleva <= 0) {
+            throw new InvalidArgumentException('La promocion por cantidad requiere unidades a pagar y unidades gratis/lleva.');
+        }
+
+        return ['paga' => $paga, 'lleva' => $lleva];
     }
 }

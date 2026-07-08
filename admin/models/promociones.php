@@ -83,6 +83,10 @@ class Promociones extends Sistema
                                                FROM familias
                                                WHERE activo = 1
                                                ORDER BY nom_familia ASC")->fetchAll(PDO::FETCH_ASSOC),
+            'metales' => $this->getDb()->query("SELECT id_metal, nom_metal
+                                               FROM metales
+                                               WHERE activo = 1
+                                               ORDER BY nom_metal ASC")->fetchAll(PDO::FETCH_ASSOC),
         ];
     }
 
@@ -104,9 +108,9 @@ class Promociones extends Sistema
 
         $stmt = $this->getDb()->prepare(
             "INSERT INTO promociones
-            (nombre, porcentaje_descuento, fecha_inicio, fecha_fin, id_pieza_FK, id_subfamilia_FK, id_familia_FK, aplica_todas_familias, observaciones, activa)
+            (nombre, porcentaje_descuento, fecha_inicio, fecha_fin, id_pieza_FK, id_subfamilia_FK, id_familia_FK, id_metal_FK, aplica_todas_familias, observaciones, activa)
             VALUES
-            (:nombre, :porcentaje_descuento, :fecha_inicio, :fecha_fin, :id_pieza_FK, :id_subfamilia_FK, :id_familia_FK, :aplica_todas_familias, :observaciones, 1)"
+            (:nombre, :porcentaje_descuento, :fecha_inicio, :fecha_fin, :id_pieza_FK, :id_subfamilia_FK, :id_familia_FK, :id_metal_FK, :aplica_todas_familias, :observaciones, 1)"
         );
 
         $stmt->bindValue(':nombre', $nombre, PDO::PARAM_STR);
@@ -116,6 +120,7 @@ class Promociones extends Sistema
         $stmt->bindValue(':id_pieza_FK', $alcance['id_pieza_FK'], $alcance['id_pieza_FK'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
         $stmt->bindValue(':id_subfamilia_FK', $alcance['id_subfamilia_FK'], $alcance['id_subfamilia_FK'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
         $stmt->bindValue(':id_familia_FK', $alcance['id_familia_FK'], $alcance['id_familia_FK'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $stmt->bindValue(':id_metal_FK', $alcance['id_metal_FK'], $alcance['id_metal_FK'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
         $stmt->bindValue(':aplica_todas_familias', $alcance['aplica_todas_familias'], PDO::PARAM_INT);
         $stmt->bindValue(':observaciones', $observaciones, $observaciones === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $stmt->execute();
@@ -150,6 +155,7 @@ class Promociones extends Sistema
                 id_pieza_FK = :id_pieza_FK,
                 id_subfamilia_FK = :id_subfamilia_FK,
                 id_familia_FK = :id_familia_FK,
+                id_metal_FK = :id_metal_FK,
                 aplica_todas_familias = :aplica_todas_familias,
                 observaciones = :observaciones
             WHERE id_promocion = :id_promocion"
@@ -162,6 +168,7 @@ class Promociones extends Sistema
         $stmt->bindValue(':id_pieza_FK', $alcance['id_pieza_FK'], $alcance['id_pieza_FK'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
         $stmt->bindValue(':id_subfamilia_FK', $alcance['id_subfamilia_FK'], $alcance['id_subfamilia_FK'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
         $stmt->bindValue(':id_familia_FK', $alcance['id_familia_FK'], $alcance['id_familia_FK'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $stmt->bindValue(':id_metal_FK', $alcance['id_metal_FK'], $alcance['id_metal_FK'] === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
         $stmt->bindValue(':aplica_todas_familias', $alcance['aplica_todas_familias'], PDO::PARAM_INT);
         $stmt->bindValue(':observaciones', $observaciones, $observaciones === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $stmt->bindValue(':id_promocion', (int) $idPromocion, PDO::PARAM_INT);
@@ -204,6 +211,7 @@ class Promociones extends Sistema
                 'id_pieza_FK' => null,
                 'id_subfamilia_FK' => null,
                 'id_familia_FK' => null,
+                'id_metal_FK' => null,
             ];
         }
 
@@ -211,9 +219,10 @@ class Promociones extends Sistema
         $idSubfamilia = $this->validarEnteroOpcional($data, 'id_subfamilia_FK')
             ?? $this->validarEnteroOpcional($data, 'id_sub_familia_FK');
         $idFamilia = $this->validarEnteroOpcional($data, 'id_familia_FK');
+        $idMetal = $this->validarEnteroOpcional($data, 'id_metal_FK');
 
-        if ($idPieza === null && $idSubfamilia === null && $idFamilia === null) {
-            throw new Exception('Debe seleccionar todas las familias o al menos una pieza, subfamilia o familia.');
+        if ($idPieza === null && $idSubfamilia === null && $idFamilia === null && $idMetal === null) {
+            throw new Exception('Debe seleccionar todas las familias o al menos una pieza, subfamilia, familia o metal.');
         }
 
         return [
@@ -221,6 +230,7 @@ class Promociones extends Sistema
             'id_pieza_FK' => $idPieza,
             'id_subfamilia_FK' => $idSubfamilia,
             'id_familia_FK' => $idFamilia,
+            'id_metal_FK' => $idMetal,
         ];
     }
 

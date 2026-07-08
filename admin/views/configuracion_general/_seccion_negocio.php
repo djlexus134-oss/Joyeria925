@@ -40,7 +40,7 @@
             <label for="descuento_general_mostrador">Descuento piezas en mostrador (%)</label>
             <input class="form-input" type="number" step="0.01" min="0" max="100" name="descuento_general_mostrador" id="descuento_general_mostrador"
                    value="<?php echo htmlspecialchars((string) $valores['descuento_general_mostrador']); ?>">
-            <small class="form-hint">Piezas/joyas cuando el cliente no tiene descuento propio.</small>
+            <small class="form-hint">Piezas/joyas cuando el metal no tiene % propio o el cliente no tiene descuento.</small>
         </div>
         <div class="form-group">
             <label for="descuento_insumos_mostrador">Descuento insumos en mostrador (%)</label>
@@ -52,8 +52,8 @@
 
     <h4 style="margin-top:1.25rem;"><i class="bi bi-percent"></i> Descuento mayoreo (joyas)</h4>
     <p class="text-muted" style="margin:0 0 0.75rem 0;font-size:0.9rem;">
-        Si el cliente alcanza el subtotal de joyas a precio lista en una compra pagada (online o mostrador),
-        se le asigna el descuento indicado en su ficha (sin bajar un % mayor existente). Aplica en catálogo web y POS; los insumos en mostrador quedan excluidos.
+        Si el cliente alcanza el subtotal de joyas en plata (metales con mayoreo activo) a precio lista en una compra pagada,
+        se le asigna el descuento indicado en su ficha (sin bajar un % mayor existente). Aplica en catálogo web y POS.
     </p>
     <div class="form-row">
         <div class="form-group">

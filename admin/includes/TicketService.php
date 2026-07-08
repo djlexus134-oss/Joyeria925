@@ -90,8 +90,10 @@ class TicketService
         $pagos = $this->ventas->leerPagosVenta($idVenta);
 
         $subtotal = 0.0;
+        $subtotalLista = 0.0;
         $conteoPiezas = 0;
         $lineas = [];
+        $descuentoDesgloseMap = [];
         foreach ($detalle as $ln) {
             if (!is_array($ln)) {
                 continue;
@@ -100,26 +102,63 @@ class TicketService
                 continue;
             }
             $cantidad = (float) ($ln['cantidad'] ?? 0);
+            if ($cantidad <= 0) {
+                $cantidad = 1.0;
+            }
             $precio = (float) ($ln['precio_unitario'] ?? 0);
             $subtotalLinea = isset($ln['subtotal']) ? (float) $ln['subtotal'] : ($cantidad * $precio);
+            $subtotalListaLinea = $precio > 0 ? $precio * $cantidad : $subtotalLinea;
+            $descuentoLinea = isset($ln['descuento_aplicado']) && is_numeric($ln['descuento_aplicado'])
+                ? (float) $ln['descuento_aplicado']
+                : max(0.0, round($subtotalListaLinea - $subtotalLinea, 2));
+            $descuentoPct = $subtotalListaLinea > 0.00001
+                ? round(($descuentoLinea / $subtotalListaLinea) * 100, 2)
+                : 0.0;
+
             $subtotal += $subtotalLinea;
+            $subtotalLista += $subtotalListaLinea;
             if (($ln['tipo_linea'] ?? '') === 'joya' && $cantidad > 0) {
                 $conteoPiezas += (int) round($cantidad);
             }
+
+            if ($descuentoLinea > 0.009) {
+                $tipoLinea = (string) ($ln['tipo_linea'] ?? '');
+                if ($tipoLinea === 'insumo') {
+                    $claveDesglose = 'Insumos';
+                } else {
+                    $nomMetal = trim((string) ($ln['pieza_metal_nombre'] ?? ''));
+                    $claveDesglose = $nomMetal !== '' ? $nomMetal : 'Joyas';
+                }
+                $descuentoDesgloseMap[$claveDesglose] = ($descuentoDesgloseMap[$claveDesglose] ?? 0.0) + $descuentoLinea;
+            }
+
             $lineas[] = [
                 'descripcion' => (string) ($ln['nombre_item'] ?? $ln['descripcion'] ?? 'Articulo'),
                 'codigo' => $this->resolverCodigoItemTicket($ln),
                 'cantidad' => $cantidad,
                 'precio_unitario' => $precio,
                 'subtotal' => $subtotalLinea,
+                'subtotal_lista' => round($subtotalListaLinea, 2),
+                'descuento_monto' => round($descuentoLinea, 2),
+                'descuento_porcentaje' => $descuentoPct,
+            ];
+        }
+
+        $descuentoDesglose = [];
+        foreach ($descuentoDesgloseMap as $etiqueta => $monto) {
+            if ($monto <= 0.009) {
+                continue;
+            }
+            $descuentoDesglose[] = [
+                'etiqueta' => 'Desc. ' . $etiqueta,
+                'monto' => round((float) $monto, 2),
             ];
         }
 
         $descuentoPct = (float) ($venta['descuento_porcentaje_aplicado'] ?? 0);
         $total = (float) ($venta['total'] ?? 0);
         $impuestoMonto = (float) ($venta['impuesto_monto'] ?? 0);
-        $baseGravable = max(0, $total - $impuestoMonto);
-        $descuentoTotal = max(0, round($subtotal - $baseGravable, 2));
+        $descuentoTotal = max(0, round($subtotalLista - $subtotal, 2));
 
         $montoCanje = 0.0;
         $devCanje = new Devoluciones();
@@ -131,8 +170,8 @@ class TicketService
         $montoCanje = round($montoCanje, 2);
 
         $descuentoMonto = max(0, round($descuentoTotal - $montoCanje, 2));
-        if ($descuentoMonto <= 0 && $descuentoPct > 0 && $montoCanje <= 0.009) {
-            $descuentoMonto = round($subtotal * ($descuentoPct / 100), 2);
+        if ($descuentoMonto <= 0 && $descuentoPct > 0 && $montoCanje <= 0.009 && $subtotalLista > 0) {
+            $descuentoMonto = round($subtotalLista * ($descuentoPct / 100), 2);
         }
 
         $ancho = (int) ($cfg['ticket_ancho_columnas'] ?? 38);
@@ -162,8 +201,10 @@ class TicketService
             'fecha_venta' => (string) ($venta['fecha_venta'] ?? ''),
             'empleado_numero' => $this->formatearNumeroEmpleado((int) ($venta['id_empleado_FK'] ?? 0)),
             'cliente_nombre' => (string) ($venta['cliente_nombre'] ?? ''),
+            'subtotal_lista' => round($subtotalLista, 2),
             'subtotal' => round($subtotal, 2),
             'descuento_monto' => round($descuentoMonto, 2),
+            'descuento_desglose' => $descuentoDesglose,
             'monto_canje' => $montoCanje,
             'impuesto_porcentaje' => (float) ($venta['impuesto_porcentaje'] ?? 0),
             'impuesto_monto' => (float) ($venta['impuesto_monto'] ?? 0),
@@ -226,23 +267,51 @@ class TicketService
         }
 
         $subtotal = 0.0;
+        $subtotalLista = 0.0;
         $conteoPiezas = 0;
         $lineas = [];
+        $descuentoDesgloseMap = [];
         foreach ($full['detalles'] ?? [] as $d) {
             if (!is_array($d)) {
                 continue;
             }
             $pr = (float) ($d['precio_apartado'] ?? 0);
+            $lista = (float) ($d['precio_venta'] ?? $pr);
+            $descLinea = max(0.0, round($lista - $pr, 2));
+            $descPct = $lista > 0.00001 ? round(($descLinea / $lista) * 100, 2) : 0.0;
             $subtotal += $pr;
+            $subtotalLista += $lista;
             $conteoPiezas++;
+
+            if ($descLinea > 0.009) {
+                $nomMetal = trim((string) ($d['metal_nombre'] ?? ''));
+                $claveDesglose = $nomMetal !== '' ? $nomMetal : 'Joyas';
+                $descuentoDesgloseMap[$claveDesglose] = ($descuentoDesgloseMap[$claveDesglose] ?? 0.0) + $descLinea;
+            }
+
             $lineas[] = [
                 'descripcion' => (string) ($d['desc_pieza'] ?? 'Pieza'),
                 'codigo' => $this->resolverCodigoApartadoDetalle($d),
                 'cantidad' => 1.0,
-                'precio_unitario' => $pr,
+                'precio_unitario' => $lista > 0 ? $lista : $pr,
                 'subtotal' => $pr,
+                'subtotal_lista' => round($lista, 2),
+                'descuento_monto' => round($descLinea, 2),
+                'descuento_porcentaje' => $descPct,
             ];
         }
+
+        $descuentoDesglose = [];
+        foreach ($descuentoDesgloseMap as $etiqueta => $monto) {
+            if ($monto <= 0.009) {
+                continue;
+            }
+            $descuentoDesglose[] = [
+                'etiqueta' => 'Desc. ' . $etiqueta,
+                'monto' => round((float) $monto, 2),
+            ];
+        }
+        $descuentoMonto = max(0.0, round($subtotalLista - $subtotal, 2));
 
         $pagosDisplay = [];
         foreach ($full['pagos'] ?? [] as $p) {
@@ -298,8 +367,10 @@ class TicketService
             'fecha_venta' => $fecha,
             'empleado_numero' => $this->formatearNumeroEmpleado($idEmp),
             'cliente_nombre' => (string) ($full['cliente_nombre'] ?? ''),
+            'subtotal_lista' => round($subtotalLista, 2),
             'subtotal' => round($subtotal, 2),
-            'descuento_monto' => 0.0,
+            'descuento_monto' => round($descuentoMonto, 2),
+            'descuento_desglose' => $descuentoDesglose,
             'impuesto_porcentaje' => 0.0,
             'impuesto_monto' => $impMonto,
             'total' => $totalApr,
@@ -351,6 +422,12 @@ class TicketService
                     <span><?php echo $esc(($linea['cantidad'] ?? 1) . ' x ' . $money($linea['precio_unitario'] ?? 0)); ?></span>
                     <span><?php echo $esc($money($linea['subtotal'] ?? 0)); ?></span>
                 </div>
+                <?php if (!empty($linea['descuento_monto']) && (float) $linea['descuento_monto'] > 0.009): ?>
+                    <div style="font-size:12px;color:#444;">
+                        Desc <?php echo $esc(number_format((float) ($linea['descuento_porcentaje'] ?? 0), 2, '.', '')); ?>%
+                        (-<?php echo $esc($money($linea['descuento_monto'])); ?>)
+                    </div>
+                <?php endif; ?>
             <?php endforeach; ?>
             <?php if (array_key_exists('conteo_piezas', $ticket)): ?>
                 <div style="display:flex;justify-content:space-between;font-weight:bold;">
@@ -359,6 +436,16 @@ class TicketService
                 </div>
             <?php endif; ?>
             <div><?php echo str_repeat('-', $chars); ?></div>
+            <?php if (!empty($ticket['subtotal_lista']) && (float) $ticket['subtotal_lista'] > (float) ($ticket['subtotal'] ?? 0) + 0.009): ?>
+                <div style="display:flex;justify-content:space-between;"><span>Subtotal lista</span><span><?php echo $esc($money($ticket['subtotal_lista'])); ?></span></div>
+            <?php endif; ?>
+            <?php foreach ($ticket['descuento_desglose'] ?? [] as $itemDesc): ?>
+                <?php if (!is_array($itemDesc) || (float) ($itemDesc['monto'] ?? 0) <= 0.009) { continue; } ?>
+                <div style="display:flex;justify-content:space-between;">
+                    <span><?php echo $esc($itemDesc['etiqueta'] ?? 'Descuento'); ?></span>
+                    <span>-<?php echo $esc($money($itemDesc['monto'])); ?></span>
+                </div>
+            <?php endforeach; ?>
             <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span><?php echo $esc($money($ticket['subtotal'] ?? 0)); ?></span></div>
             <?php if (!empty($ticket['mostrar_impuesto'])): ?>
                 <div style="display:flex;justify-content:space-between;"><span>Impuesto</span><span><?php echo $esc($money($ticket['impuesto_monto'] ?? 0)); ?></span></div>

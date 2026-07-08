@@ -58,6 +58,8 @@ $authNavGroups = auth_visible_nav_groups();
 $authCaps = auth_current_capabilities();
 $authRoles = isset($authUser['roles']) && is_array($authUser['roles']) ? implode(', ', $authUser['roles']) : '';
 $authCurrentScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'index.php'));
+$authCsrfToken = joyeria_admin_csrf_token();
+joyeria_session_release_write();
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -66,7 +68,7 @@ $authCurrentScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'index.php'))
     <meta charset="UTF-8">
     <title><?php echo htmlspecialchars(joyeria_marca_titulo('Administrador'), ENT_QUOTES, 'UTF-8'); ?></title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="<?php echo htmlspecialchars(joyeria_admin_csrf_token(), ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="csrf-token" content="<?php echo htmlspecialchars($authCsrfToken, ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
@@ -74,31 +76,50 @@ $authCurrentScript = basename((string) ($_SERVER['SCRIPT_NAME'] ?? 'index.php'))
     <link rel="stylesheet" href="../css/admin.css?v=<?php echo (int) @filemtime(__DIR__ . '/../../css/admin.css'); ?>">
     <link rel="stylesheet" href="css/joyeria-barcode-input.css?v=<?php echo (int) @filemtime(__DIR__ . '/../css/joyeria-barcode-input.css'); ?>">
     <script src="js/joyeria-csrf.js?v=<?php echo (int) @filemtime(__DIR__ . '/../js/joyeria-csrf.js'); ?>"></script>
+    <script src="js/joyeria-api-fetch.js?v=<?php echo (int) @filemtime(__DIR__ . '/../js/joyeria-api-fetch.js'); ?>"></script>
     <script src="js/joyeria-barcode-input.js?v=<?php echo (int) @filemtime(__DIR__ . '/../js/joyeria-barcode-input.js'); ?>" defer></script>
     <script>
     (function () {
-        var token = window.joyeriaCsrfToken ? window.joyeriaCsrfToken() : '';
-        if (!token) {
-            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-            token = csrfMeta ? String(csrfMeta.getAttribute('content') || '').trim() : '';
-        }
-        if (!token) {
-            return;
+        function readCsrfToken() {
+            var token = window.joyeriaCsrfToken ? window.joyeriaCsrfToken() : '';
+            if (!token) {
+                var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                token = csrfMeta ? String(csrfMeta.getAttribute('content') || '').trim() : '';
+            }
+            return token;
         }
 
+        function isSameOriginRequest(input) {
+            var url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+            if (!url || url.indexOf('http') !== 0) {
+                return true;
+            }
+            try {
+                return new URL(url, window.location.href).origin === window.location.origin;
+            } catch (e) {
+                return true;
+            }
+        }
+
+        var token = readCsrfToken();
         var origFetch = window.fetch;
         window.fetch = function (input, init) {
             init = init || {};
-            if (window.joyeriaPrepareFetchCsrf) {
-                init = window.joyeriaPrepareFetchCsrf(init);
-            } else {
-                var method = (init.method || 'GET').toUpperCase();
-                if (['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(method) !== -1) {
-                    var headers = new Headers(init.headers || undefined);
-                    headers.set('X-CSRF-Token', token);
-                    init.headers = headers;
-                    if (init.body instanceof FormData && window.joyeriaAppendCsrfToFormData) {
-                        window.joyeriaAppendCsrfToFormData(init.body);
+            if (!init.credentials && isSameOriginRequest(input)) {
+                init.credentials = 'same-origin';
+            }
+            if (isSameOriginRequest(input)) {
+                if (window.joyeriaPrepareFetchCsrf) {
+                    init = window.joyeriaPrepareFetchCsrf(init);
+                } else if (token) {
+                    var method = (init.method || 'GET').toUpperCase();
+                    if (['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(method) !== -1) {
+                        var headers = new Headers(init.headers || undefined);
+                        headers.set('X-CSRF-Token', token);
+                        init.headers = headers;
+                        if (init.body instanceof FormData && window.joyeriaAppendCsrfToFormData) {
+                            window.joyeriaAppendCsrfToFormData(init.body);
+                        }
                     }
                 }
             }

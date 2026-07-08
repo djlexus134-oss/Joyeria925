@@ -4,6 +4,7 @@ require_once __DIR__ . '/../../sistema.class.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/apartado_cambio.php';
 require_once __DIR__ . '/ventas.php';
+require_once __DIR__ . '/../includes/ReglasDescuentoService.php';
 
 /**
  * Alta de apartados (multilinea) y abonos (cobro en tienda).
@@ -175,10 +176,12 @@ class ApartadoGestion extends Sistema
         }
 
         $stD = $db->prepare(
-            "SELECT ad.*, ps.codigo_auxiliar, ps.codigo_barras, ps.estado AS estado_pieza, p.desc_pieza
+            "SELECT ad.*, ps.codigo_auxiliar, ps.codigo_barras, ps.estado AS estado_pieza, ps.precio_venta,
+                    p.desc_pieza, p.id_metal_FK, m.nom_metal AS metal_nombre
              FROM apartado_detalle ad
              INNER JOIN piezas_stock ps ON ps.id_pieza_stock = ad.id_pieza_stock_FK
              INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
+             LEFT JOIN metales m ON m.id_metal = p.id_metal_FK
              WHERE ad.id_apartado_FK = :id
              ORDER BY ad.id_apartado_detalle ASC"
         );
@@ -477,17 +480,131 @@ class ApartadoGestion extends Sistema
 
     /**
      * Precio pactado por pieza tras descuento del cliente (misma regla que POS).
+     *
+     * @param list<array{precio_venta: float, id_metal_FK: int}> $piezasJoyasContexto
      */
-    public function precioApartadoDesdePrecioVenta(float $precioVenta, int $idCliente): string
-    {
+    public function precioApartadoDesdePrecioVenta(
+        float $precioVenta,
+        int $idCliente,
+        int $idMetal = 0,
+        array $piezasJoyasContexto = []
+    ): string {
         if ($precioVenta <= 0) {
             return '0.00';
         }
-        $ventas = new Ventas();
-        $pct = $ventas->resolverDescuentoPorcentajeLinea('joya', $idCliente > 0 ? $idCliente : null);
-        $precioFinal = max(0.0, $precioVenta * (1.0 - ($pct / 100.0)));
 
-        return $this->normalizarDecimal($precioFinal);
+        if ($piezasJoyasContexto === []) {
+            $piezasJoyasContexto = [
+                [
+                    'precio_venta' => $precioVenta,
+                    'id_metal_FK' => $idMetal,
+                ],
+            ];
+        }
+
+        $lineas = (new ReglasDescuentoService())->calcularLineasJoyasDocumento(
+            $piezasJoyasContexto,
+            $idCliente > 0 ? $idCliente : null
+        );
+        $idx = count($piezasJoyasContexto) - 1;
+        $precioFinal = isset($lineas[$idx]) ? (float) ($lineas[$idx]['precio_final'] ?? $precioVenta) : $precioVenta;
+
+        return $this->normalizarDecimal(max(0.0, $precioFinal));
+    }
+
+    /**
+     * @return list<array{precio_venta: float, id_metal_FK: int}>
+     */
+    private function armarContextoJoyasApartado(PDO $db, int $idApartado, ?array $piezaExtra = null): array
+    {
+        $contexto = [];
+        if ($idApartado > 0) {
+            $st = $db->prepare(
+                'SELECT ps.precio_venta, p.id_metal_FK
+                 FROM apartado_detalle ad
+                 INNER JOIN piezas_stock ps ON ps.id_pieza_stock = ad.id_pieza_stock_FK
+                 INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
+                 WHERE ad.id_apartado_FK = :id
+                 ORDER BY ad.id_apartado_detalle ASC'
+            );
+            $st->bindValue(':id', $idApartado, PDO::PARAM_INT);
+            $st->execute();
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $pu = (float) ($row['precio_venta'] ?? 0);
+                if ($pu <= 0) {
+                    continue;
+                }
+                $contexto[] = [
+                    'precio_venta' => $pu,
+                    'id_metal_FK' => (int) ($row['id_metal_FK'] ?? 0),
+                ];
+            }
+        }
+
+        if ($piezaExtra !== null && is_array($piezaExtra)) {
+            $puExtra = (float) ($piezaExtra['precio_venta'] ?? 0);
+            if ($puExtra > 0) {
+                $contexto[] = [
+                    'precio_venta' => $puExtra,
+                    'id_metal_FK' => (int) ($piezaExtra['id_metal_FK'] ?? 0),
+                ];
+            }
+        }
+
+        return $contexto;
+    }
+
+    /**
+     * Contexto de joyas al reemplazar una linea en un apartado activo.
+     *
+     * @return list<array{precio_venta: float, id_metal_FK: int}>
+     */
+    public function armarContextoReemplazoPiezaApartado(
+        PDO $db,
+        int $idApartado,
+        int $idDetalleReemplazar,
+        float $precioNuevo,
+        int $idMetalNuevo
+    ): array {
+        $contexto = [];
+        $st = $db->prepare(
+            'SELECT ad.id_apartado_detalle, ps.precio_venta, p.id_metal_FK
+             FROM apartado_detalle ad
+             INNER JOIN piezas_stock ps ON ps.id_pieza_stock = ad.id_pieza_stock_FK
+             INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
+             WHERE ad.id_apartado_FK = :id
+             ORDER BY ad.id_apartado_detalle ASC'
+        );
+        $st->bindValue(':id', $idApartado, PDO::PARAM_INT);
+        $st->execute();
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $idDet = (int) ($row['id_apartado_detalle'] ?? 0);
+            if ($idDet === $idDetalleReemplazar) {
+                if ($precioNuevo > 0) {
+                    $contexto[] = [
+                        'precio_venta' => $precioNuevo,
+                        'id_metal_FK' => $idMetalNuevo,
+                    ];
+                }
+                continue;
+            }
+            $pu = (float) ($row['precio_venta'] ?? 0);
+            if ($pu <= 0) {
+                continue;
+            }
+            $contexto[] = [
+                'precio_venta' => $pu,
+                'id_metal_FK' => (int) ($row['id_metal_FK'] ?? 0),
+            ];
+        }
+
+        return $contexto;
     }
 
     /**
@@ -518,10 +635,11 @@ class ApartadoGestion extends Sistema
             throw new InvalidArgumentException('El impuesto seleccionado no existe.');
         }
 
-        $descPct = $ventas->resolverDescuentoPorcentajeLinea('joya', $idCliente);
         $descCliente = $ventas->obtenerDescuentoClientePorcentaje($idCliente);
         $descGeneral = $ventas->obtenerDescuentoGeneralMostrador();
 
+        $piezasJoyas = [];
+        $metaLineas = [];
         $lineasOut = [];
         $subtotalLista = 0.0;
         $subtotalApartado = 0.0;
@@ -545,8 +663,9 @@ class ApartadoGestion extends Sistema
             $vistos[$idP] = true;
 
             $stPs = $db->prepare(
-                'SELECT ps.precio_venta, ps.codigo_barras, ps.codigo_auxiliar
+                'SELECT ps.precio_venta, ps.codigo_barras, ps.codigo_auxiliar, p.id_metal_FK
                  FROM piezas_stock ps
+                 INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
                  WHERE ps.id_pieza_stock = :id AND ps.activo = 1 LIMIT 1'
             );
             $stPs->bindValue(':id', $idP, PDO::PARAM_INT);
@@ -562,18 +681,39 @@ class ApartadoGestion extends Sistema
                 throw new InvalidArgumentException('Linea ' . ($idx + 1) . ': precio de venta invalido.');
             }
 
-            $precioApartadoStr = $this->precioApartadoDesdePrecioVenta($precioVenta, $idCliente);
-            $subtotalLista += $precioVenta;
-            $subtotalApartado += (float) $precioApartadoStr;
-
-            $codigoVisible = $cod !== '' ? $cod : (string) ($rowPs['codigo_barras'] ?? $rowPs['codigo_auxiliar'] ?? '');
-            $lineasOut[] = [
+            $piezasJoyas[] = [
+                'precio_venta' => $precioVenta,
+                'id_metal_FK' => (int) ($rowPs['id_metal_FK'] ?? 0),
+            ];
+            $metaLineas[] = [
                 'id_pieza_stock_FK' => $idP,
-                'codigo_pieza' => $codigoVisible,
+                'codigo_pieza' => $cod !== '' ? $cod : (string) ($rowPs['codigo_barras'] ?? $rowPs['codigo_auxiliar'] ?? ''),
                 'precio_venta' => $precioVentaStr,
-                'precio_apartado' => $precioApartadoStr,
             ];
         }
+
+        $lineasCalc = (new ReglasDescuentoService())->calcularLineasJoyasDocumento($piezasJoyas, $idCliente);
+        foreach ($metaLineas as $i => $meta) {
+            $calcLinea = isset($lineasCalc[$i]) && is_array($lineasCalc[$i]) ? $lineasCalc[$i] : null;
+            $precioApartadoStr = $calcLinea !== null
+                ? $this->normalizarDecimal((float) ($calcLinea['precio_final'] ?? $meta['precio_venta']))
+                : (string) $meta['precio_venta'];
+            $subtotalLista += (float) $meta['precio_venta'];
+            $subtotalApartado += (float) $precioApartadoStr;
+            $lineasOut[] = [
+                'id_pieza_stock_FK' => (int) $meta['id_pieza_stock_FK'],
+                'codigo_pieza' => (string) $meta['codigo_pieza'],
+                'precio_venta' => (string) $meta['precio_venta'],
+                'precio_apartado' => $precioApartadoStr,
+                'descuento_porcentaje' => $calcLinea !== null
+                    ? $this->normalizarDecimal((float) ($calcLinea['descuento_porcentaje'] ?? 0))
+                    : '0.00',
+            ];
+        }
+
+        $descPct = $subtotalLista > 0.00001
+            ? (($subtotalLista - $subtotalApartado) / $subtotalLista) * 100
+            : 0.0;
 
         $descMonto = max(0.0, $subtotalLista - $subtotalApartado);
         $impPct = isset($impuesto['porcentaje']) ? (float) $impuesto['porcentaje'] : 0.0;
@@ -607,19 +747,40 @@ class ApartadoGestion extends Sistema
      */
     private function aplicarDescuentoClienteALineasApartado(int $idCliente, array $lineasNorm, array $preciosVentaPorId): array
     {
-        $resultado = [];
+        $piezasJoyas = [];
         foreach ($lineasNorm as $ln) {
             $idP = (int) ($ln['id_pieza_stock_FK'] ?? 0);
             $row = $preciosVentaPorId[$idP] ?? null;
             if (!is_array($row)) {
                 throw new InvalidArgumentException('No se encontro precio de venta para la pieza ' . $idP . '.');
             }
-            $precioListaStr = $this->normalizarDecimal($row['precio_venta'] ?? 0);
-            $precioLista = (float) $precioListaStr;
+            $precioLista = (float) $this->normalizarDecimal($row['precio_venta'] ?? 0);
             if ($precioLista <= 0) {
                 throw new InvalidArgumentException('Precio de venta invalido para la pieza ' . $idP . '.');
             }
-            $precioConDescStr = $this->precioApartadoDesdePrecioVenta($precioLista, $idCliente);
+            $piezasJoyas[] = [
+                'precio_venta' => $precioLista,
+                'id_metal_FK' => (int) ($row['id_metal_FK'] ?? 0),
+            ];
+        }
+
+        $lineasCalc = (new ReglasDescuentoService())->calcularLineasJoyasDocumento(
+            $piezasJoyas,
+            $idCliente > 0 ? $idCliente : null
+        );
+
+        $resultado = [];
+        foreach ($lineasNorm as $idx => $ln) {
+            $idP = (int) ($ln['id_pieza_stock_FK'] ?? 0);
+            $row = $preciosVentaPorId[$idP] ?? null;
+            if (!is_array($row)) {
+                throw new InvalidArgumentException('No se encontro precio de venta para la pieza ' . $idP . '.');
+            }
+            $precioListaStr = $this->normalizarDecimal($row['precio_venta'] ?? 0);
+            $calcLinea = isset($lineasCalc[$idx]) && is_array($lineasCalc[$idx]) ? $lineasCalc[$idx] : null;
+            $precioConDescStr = $calcLinea !== null
+                ? $this->normalizarDecimal((float) ($calcLinea['precio_final'] ?? $precioListaStr))
+                : $precioListaStr;
             $resultado[] = [
                 'id_pieza_stock_FK' => $idP,
                 'precio_str' => $precioConDescStr,
@@ -735,7 +896,7 @@ class ApartadoGestion extends Sistema
             $idsPiezas = array_column($lineasNorm, 'id_pieza_stock_FK');
             $placeholders = implode(',', array_fill(0, count($idsPiezas), '?'));
             $stLock = $db->prepare(
-                "SELECT ps.id_pieza_stock, ps.estado, ps.activo, ps.precio_venta, p.id_tienda_FK AS id_tienda_pieza
+                "SELECT ps.id_pieza_stock, ps.estado, ps.activo, ps.precio_venta, p.id_tienda_FK AS id_tienda_pieza, p.id_metal_FK
                  FROM piezas_stock ps
                  INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
                  WHERE ps.id_pieza_stock IN ($placeholders)
@@ -1485,7 +1646,7 @@ class ApartadoGestion extends Sistema
             }
 
             $stPs = $db->prepare(
-                'SELECT ps.id_pieza_stock, ps.estado, ps.activo, ps.precio_venta, p.id_tienda_FK AS id_tienda_pieza
+                'SELECT ps.id_pieza_stock, ps.estado, ps.activo, ps.precio_venta, p.id_tienda_FK AS id_tienda_pieza, p.id_metal_FK
                  FROM piezas_stock ps
                  INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
                  WHERE ps.id_pieza_stock = :id
@@ -1517,11 +1678,21 @@ class ApartadoGestion extends Sistema
 
             $precioVentaStr = $this->normalizarDecimal($ps['precio_venta'] ?? 0);
             $idClienteApartado = (int) ($ap['id_cliente_FK'] ?? 0);
+            $idMetalPieza = (int) ($ps['id_metal_FK'] ?? 0);
             $precioManual = isset($data['precio_apartado']) && $data['precio_apartado'] !== '' && $data['precio_apartado'] !== null;
             if ($precioManual) {
                 $precioStr = $this->normalizarDecimal($data['precio_apartado']);
             } else {
-                $precioStr = $this->precioApartadoDesdePrecioVenta((float) $precioVentaStr, $idClienteApartado);
+                $contexto = $this->armarContextoJoyasApartado($db, $idApartado, [
+                    'precio_venta' => (float) $precioVentaStr,
+                    'id_metal_FK' => $idMetalPieza,
+                ]);
+                $precioStr = $this->precioApartadoDesdePrecioVenta(
+                    (float) $precioVentaStr,
+                    $idClienteApartado,
+                    $idMetalPieza,
+                    $contexto
+                );
             }
             if ((float) $precioStr <= 0) {
                 throw new InvalidArgumentException('Precio de la pieza para apartado invalido.');

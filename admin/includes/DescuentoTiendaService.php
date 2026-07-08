@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../sistema.class.php';
 require_once __DIR__ . '/PromocionTiendaResolver.php';
+require_once __DIR__ . '/ReglasDescuentoService.php';
 require_once __DIR__ . '/../models/configuracion_general.php';
 require_once __DIR__ . '/configuracion_plantilla_defaults.php';
 require_once __DIR__ . '/../models/ventas.php';
@@ -179,33 +180,22 @@ class DescuentoTiendaService extends Sistema
         int $idPieza,
         int $idSubfamilia,
         int $idFamilia,
-        float $subtotalJoyasListaTransaccion
+        float $subtotalJoyasListaTransaccion,
+        int $idMetal = 0,
+        int $conteoPiezasMetal = 0,
+        ?float $subtotalPlataListaTransaccion = null
     ): array {
-        $pctCliente = $this->obtenerDescuentoCliente($idCliente) ?? 0.0;
-        $pctMayoreo = $this->porcentajeMayoreoTransaccion($subtotalJoyasListaTransaccion);
+        $subPlata = $subtotalPlataListaTransaccion ?? $subtotalJoyasListaTransaccion;
 
-        $promo = (new PromocionTiendaResolver())->resolverParaPieza($idPieza, $idSubfamilia, $idFamilia);
-        $pctPromo = $promo !== null ? (float) ($promo['porcentaje_descuento'] ?? 0) : 0.0;
-
-        $pct = max($pctCliente, $pctMayoreo, $pctPromo);
-        $pct = $this->acotarPorcentaje($pct);
-
-        $origen = 'ninguno';
-        if ($pct > 0) {
-            if ($pctPromo >= $pct - 0.0001 && $pctPromo >= $pctCliente && $pctPromo >= $pctMayoreo) {
-                $origen = 'promocion';
-            } elseif ($pctMayoreo >= $pct - 0.0001 && $pctMayoreo >= $pctCliente) {
-                $origen = 'mayoreo';
-            } else {
-                $origen = 'cliente';
-            }
-        }
-
-        return [
-            'porcentaje' => $pct,
-            'origen' => $origen,
-            'promocion' => ($origen === 'promocion' && is_array($promo)) ? $promo : null,
-        ];
+        return (new ReglasDescuentoService())->resolverPorcentajeEfectivoPiezaOnline(
+            $idCliente,
+            $idPieza,
+            $idSubfamilia,
+            $idFamilia,
+            $idMetal,
+            $subPlata,
+            $conteoPiezasMetal > 0 ? $conteoPiezasMetal : 1
+        );
     }
 
     /**
@@ -223,16 +213,26 @@ class DescuentoTiendaService extends Sistema
         array $pieza,
         float $precioLista,
         int $idCliente = 0,
-        ?float $subtotalJoyasListaTransaccion = null
+        ?float $subtotalJoyasListaTransaccion = null,
+        int $conteoPiezasMetal = 0,
+        ?float $subtotalPlataListaTransaccion = null
     ): array {
         $precioLista = max(0.0, round($precioLista, 2));
         $idPieza = (int) ($pieza['id_pieza'] ?? 0);
         $idSub = (int) ($pieza['id_sub_familia'] ?? $pieza['id_subfamilia_FK'] ?? $pieza['id_sub_familia_FK'] ?? 0);
         $idFam = (int) ($pieza['id_familia'] ?? $pieza['id_familia_FK'] ?? 0);
+        $idMetal = (int) ($pieza['id_metal_FK'] ?? $pieza['id_metal'] ?? 0);
+        $reglas = new ReglasDescuentoService();
 
         if ($idCliente <= 0) {
-            $promo = (new PromocionTiendaResolver())->resolverParaPieza($idPieza, $idSub, $idFam);
-            if ($promo === null) {
+            $metal = $reglas->obtenerMetalPorId($idMetal);
+            $pctMetal = $metal !== null
+                ? (float) ($metal['descuento_mostrador_pct'] ?? 0)
+                : $reglas->obtenerDescuentoGeneralFallback();
+            $promo = (new PromocionTiendaResolver())->resolverParaPieza($idPieza, $idSub, $idFam, $idMetal);
+            $pctPromo = $promo !== null ? (float) ($promo['porcentaje_descuento'] ?? 0) : 0.0;
+            $pct = $this->acotarPorcentaje(max($pctMetal, $pctPromo));
+            if ($pct <= 0) {
                 return [
                     'precio_lista' => $precioLista,
                     'precio_final' => $precioLista,
@@ -243,7 +243,8 @@ class DescuentoTiendaService extends Sistema
                     'descuento_origen' => 'ninguno',
                 ];
             }
-            $precios = (new PromocionTiendaResolver())->calcularPrecios($precioLista, (float) ($promo['porcentaje_descuento'] ?? 0));
+            $precios = (new PromocionTiendaResolver())->calcularPrecios($precioLista, $pct);
+            $origen = $pctPromo >= $pct - 0.0001 && $pctPromo >= $pctMetal ? 'promocion' : 'metal';
 
             return [
                 'precio_lista' => $precios['precio_lista'],
@@ -251,13 +252,24 @@ class DescuentoTiendaService extends Sistema
                 'descuento_monto' => $precios['descuento_monto'],
                 'porcentaje' => $precios['porcentaje'],
                 'tiene_promocion' => $precios['descuento_monto'] > 0,
-                'promocion' => $promo,
-                'descuento_origen' => 'promocion',
+                'promocion' => $origen === 'promocion' ? $promo : null,
+                'descuento_origen' => $origen,
             ];
         }
 
         $subTx = $subtotalJoyasListaTransaccion ?? $precioLista;
-        $resPct = $this->resolverPorcentajeEfectivoPieza($idCliente, $idPieza, $idSub, $idFam, $subTx);
+        $subPlata = $subtotalPlataListaTransaccion ?? $subTx;
+        $conteoMetal = $conteoPiezasMetal > 0 ? $conteoPiezasMetal : 1;
+        $resPct = $this->resolverPorcentajeEfectivoPieza(
+            $idCliente,
+            $idPieza,
+            $idSub,
+            $idFam,
+            $subTx,
+            $idMetal,
+            $conteoMetal,
+            $subPlata
+        );
         $precios = (new PromocionTiendaResolver())->calcularPrecios($precioLista, $resPct['porcentaje']);
 
         return [

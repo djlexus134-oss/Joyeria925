@@ -15,7 +15,7 @@ $impuestoDefectoId = !empty($idImpuestoDefault) ? (int) $idImpuestoDefault : 0;
         <p class="text-muted">
             Agrega piezas como en <strong>punto de venta</strong>: escanea o escribe código y <strong>Agregar</strong>.
             Todas deben estar <strong>disponibles</strong> y en la <strong>misma tienda</strong>.
-            El abono sugerido es el <strong>25%</strong> del total tras <strong>descuento del cliente</strong> (o mostrador) e <strong>impuesto</strong>.
+            El abono sugerido es el <strong>20%</strong> del total tras <strong>descuento del cliente</strong> (o mostrador) e <strong>impuesto</strong>.
             <strong>Selecciona el cliente antes de agregar piezas</strong> para aplicar su descuento especial.
         </p>
 
@@ -143,7 +143,7 @@ $impuestoDefectoId = !empty($idImpuestoDefault) ? (int) $idImpuestoDefault : 0;
                 </div>
 
                 <div class="alert-message info" id="ag_abono_sugerido_wrap" style="margin-top:0.75rem;">
-                    <p style="margin:0 0 0.35rem 0;"><strong>Abono inicial sugerido (25% del total con descuento e impuesto)</strong></p>
+                    <p style="margin:0 0 0.35rem 0;"><strong>Abono inicial sugerido (20% del total con descuento e impuesto)</strong></p>
                     <p style="margin:0; font-size:1rem;" id="ag_abono_sugerido_txt">$0.00</p>
                     <p class="text-muted" style="margin:0.35rem 0 0 0; font-size:0.85rem;">El abono no puede superar el total del apartado (precios con descuento del cliente). Si hiciera falta, el monto sugerido se ajusta a ese tope.</p>
                     <div class="form-actions" style="margin-top:0.5rem; justify-content:flex-start;">
@@ -251,7 +251,7 @@ $impuestoDefectoId = !empty($idImpuestoDefault) ? (int) $idImpuestoDefault : 0;
 window.AG_ALTA_CFG = <?php echo json_encode([
     'descuentoGeneralMostrador' => (float) $descuentoGeneralMostrador,
     'impuestoDefectoId' => $impuestoDefectoId,
-    'pctAbonoSugerido' => 25,
+    'pctAbonoSugerido' => 20,
 ], JSON_UNESCAPED_UNICODE); ?>;
 </script>
 <script>
@@ -276,7 +276,7 @@ window.AG_ALTA_CFG = <?php echo json_encode([
     var selImpuesto = document.getElementById('ag_id_impuesto');
     var msgLinea = document.getElementById('ag_mensaje_linea');
 
-    var CFG = window.AG_ALTA_CFG || { descuentoGeneralMostrador: 0, impuestoDefectoId: 0, pctAbonoSugerido: 25 };
+    var CFG = window.AG_ALTA_CFG || { descuentoGeneralMostrador: 0, impuestoDefectoId: 0, pctAbonoSugerido: 20 };
 
     var wrapDescEspecial = document.getElementById('ag_descuento_especial_wrap');
     var txtDescEspecial = document.getElementById('ag_descuento_especial_txt');
@@ -358,7 +358,7 @@ window.AG_ALTA_CFG = <?php echo json_encode([
         var impMonto = parseFloat(data.impuesto_monto) || 0;
         var total = parseFloat(data.total) || 0;
         var subApartado = parseFloat(data.subtotal_apartado) || 0;
-        var pctAbono = (CFG.pctAbonoSugerido || 25) / 100;
+        var pctAbono = (CFG.pctAbonoSugerido || 20) / 100;
         var abonoSug = Math.min(total * pctAbono, subApartado);
 
         document.getElementById('ag_resumen_lineas').value = String(lineas.length);
@@ -404,9 +404,8 @@ window.AG_ALTA_CFG = <?php echo json_encode([
         }
         var idCli = obtenerIdCliente();
         var idImp = obtenerIdImpuesto();
-        return fetch('api/apartados_gestion.php', {
+        return apiJson('api/apartados_gestion.php', {
             method: 'POST',
-            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 tipo: 'preview_totales',
@@ -415,15 +414,14 @@ window.AG_ALTA_CFG = <?php echo json_encode([
                 lineas: lineasPayloadPreview()
             })
         })
-            .then(function (r) { return r.json(); })
-            .then(function (res) {
-                if (!res || !res.success) throw new Error((res && res.error) || 'No se pudieron calcular totales.');
+            .then(function (out) {
+                var res = out.data || {};
                 var t = aplicarTotalesDesdeServidor(res.data || {});
                 renderTablaFilas();
                 return t;
             })
             .catch(function (e) {
-                alert(e.message || 'Error al calcular totales.');
+                alert(mensajeErrorApi(e));
                 return aplicarTotalesVacios(false);
             });
     }
@@ -496,6 +494,40 @@ window.AG_ALTA_CFG = <?php echo json_encode([
         msgLinea.innerHTML = text ? '<div class="alert-message ' + (kind || 'info') + '"><p style="margin:0;">' + escapeHtml(text) + '</p></div>' : '';
     }
 
+    function apiJson(url, init) {
+        if (typeof window.joyeriaApiFetch === 'function') {
+            return window.joyeriaApiFetch(url, init);
+        }
+        init = init || {};
+        init.credentials = init.credentials || 'same-origin';
+        return fetch(url, init).then(function (r) {
+            return r.text().then(function (text) {
+                var data = null;
+                try {
+                    data = text ? JSON.parse(text) : null;
+                } catch (eParse) {
+                    throw new Error('El servidor devolvio una respuesta invalida. Recarga la pagina.');
+                }
+                if (r.status === 401) {
+                    var e401 = new Error((data && data.error) || 'Sesion no valida. Inicia sesion nuevamente.');
+                    e401.status = 401;
+                    throw e401;
+                }
+                if (!r.ok || (data && data.success === false)) {
+                    throw new Error((data && data.error) || ('Error ' + r.status));
+                }
+                return { response: r, data: data };
+            });
+        });
+    }
+
+    function mensajeErrorApi(err) {
+        if (err && err.status === 401) {
+            return 'Sesion no valida. Cierra sesion, vuelve a entrar al panel e intenta de nuevo.';
+        }
+        return (err && err.message) ? err.message : 'Error';
+    }
+
     function agregarPiezaPorCodigo(codigoRaw) {
         var codigo = (codigoRaw || '').trim();
         if (!codigo) {
@@ -508,10 +540,9 @@ window.AG_ALTA_CFG = <?php echo json_encode([
             if (selCliente) selCliente.focus();
             return;
         }
-        fetch('api/apartados_gestion.php?codigo_pieza=' + encodeURIComponent(codigo), { credentials: 'same-origin' })
-            .then(function (r) { return r.json(); })
-            .then(function (res) {
-                if (!res || !res.success) throw new Error((res && res.error) || 'Error');
+        apiJson('api/apartados_gestion.php?codigo_pieza=' + encodeURIComponent(codigo))
+            .then(function (out) {
+                var res = out.data || {};
                 var d = res.data;
                 var precio = parseFloat(d.precio_venta) || 0;
                 if (precio <= 0) throw new Error('Precio de venta invalido.');
@@ -528,7 +559,7 @@ window.AG_ALTA_CFG = <?php echo json_encode([
                 if (inpCodigo) inpCodigo.focus();
             })
             .catch(function (e) {
-                showLineaMsg(e.message || 'No se pudo agregar la pieza.', 'error');
+                showLineaMsg(mensajeErrorApi(e), 'error');
             });
     }
 
@@ -636,12 +667,10 @@ window.AG_ALTA_CFG = <?php echo json_encode([
             ajustarTopeAbonoCredito();
             return Promise.resolve();
         }
-        return fetch('api/clientes_creditos.php?id_cliente=' + encodeURIComponent(id) + '&estado=disponible', {
-            credentials: 'same-origin'
-        })
-            .then(function (r) { return r.json(); })
-            .then(function (res) {
-                if (res && res.success && res.data) {
+        return apiJson('api/clientes_creditos.php?id_cliente=' + encodeURIComponent(id) + '&estado=disponible')
+            .then(function (out) {
+                var res = out.data || {};
+                if (res.success && res.data) {
                     var s = parseFloat(res.data.total_disponible || 0);
                     creditoSaldoActual = isFinite(s) ? s : 0;
                 }
@@ -769,15 +798,13 @@ window.AG_ALTA_CFG = <?php echo json_encode([
                 return;
             }
             mcGuardar.disabled = true;
-            fetch('api/clientes.php', {
+            apiJson('api/clientes.php', {
                 method: 'POST',
-                credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             })
-                .then(function (r) { return r.json(); })
-                .then(function (res) {
-                    if (!res || !res.success) throw new Error((res && res.error) || 'Error');
+                .then(function (out) {
+                    var res = out.data || {};
                     if (res.correo_credenciales_mensaje && !res.correo_credenciales_enviado && !res.correo_credenciales_omitido) {
                         alert('Cliente creado, pero no se pudo enviar el correo con las credenciales:\n' + res.correo_credenciales_mensaje);
                     }
@@ -813,7 +840,7 @@ window.AG_ALTA_CFG = <?php echo json_encode([
                     });
                     if (modal && typeof modal.close === 'function') modal.close();
                 })
-                .catch(function (e) { alert(e.message || 'Error'); })
+                .catch(function (e) { alert(mensajeErrorApi(e)); })
                 .finally(function () { mcGuardar.disabled = false; });
         });
     }
@@ -863,16 +890,14 @@ window.AG_ALTA_CFG = <?php echo json_encode([
                         id_forma_pago_abono: fpAb && fpAb !== '' ? parseInt(fpAb, 10) : null,
                         abono_credito_monto: fd.get('abono_credito_monto') || '0'
                     };
-                    return fetch('api/apartados_gestion.php', {
+                    return apiJson('api/apartados_gestion.php', {
                         method: 'POST',
-                        credentials: 'same-origin',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(body)
                     });
                 })
-                .then(function (r) { return r.json(); })
-                .then(function (res) {
-                    if (!res || !res.success) throw new Error((res && res.error) || 'Error');
+                .then(function (out) {
+                    var res = out.data || {};
                     var d = res.data || {};
                     var extraTicket = '';
                     if (d.impresion_encolada) {
@@ -900,7 +925,7 @@ window.AG_ALTA_CFG = <?php echo json_encode([
                     if (acCliente && acCliente.refresh) acCliente.refresh();
                     aplicarTotalesVacios(false);
                 })
-                .catch(function (err) { alert(err.message || 'Error'); })
+                .catch(function (err) { alert(mensajeErrorApi(err)); })
                 .finally(function () { if (btn) btn.disabled = false; });
         });
     }

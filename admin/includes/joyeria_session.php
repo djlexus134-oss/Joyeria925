@@ -23,6 +23,54 @@ function joyeria_request_is_https(): bool
 }
 
 /**
+ * Ruta base de la app en el host (ej. /Joyeria925). Vacio si la app esta en la raiz del dominio.
+ */
+function joyeria_app_base_path(): string
+{
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+    if (defined('JOYERIA_APP_BASE_PATH')) {
+        $cached = rtrim((string) JOYERIA_APP_BASE_PATH, '/');
+        return $cached;
+    }
+    $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    if ($script !== '' && preg_match('#^(/.+?)/(?:admin|user)(?:/|$)#', $script, $m)) {
+        $cached = $m[1];
+        return $cached;
+    }
+    if ($script !== '' && preg_match('#^(/.+?)/(?:index|login|catalogo|tienda_|confirmacion_)#', $script, $m)) {
+        $cached = $m[1];
+        return $cached;
+    }
+    $cached = '';
+
+    return $cached;
+}
+
+function joyeria_session_cookie_path(): string
+{
+    if (defined('JOYERIA_SESSION_COOKIE_PATH')) {
+        $path = trim((string) JOYERIA_SESSION_COOKIE_PATH);
+        return $path !== '' ? $path : '/';
+    }
+
+    // Path raiz: evita cookies duplicadas (/) vs (/Joyeria925) en instalaciones en subcarpeta.
+    return '/';
+}
+
+/**
+ * Libera el lock de sesion tras leer datos (paginas SSR con fetch en paralelo).
+ */
+function joyeria_session_release_write(): void
+{
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+}
+
+/**
  * Inicia sesion (o renueva la cookie si ya esta activa).
  */
 function joyeria_session_start(): void
@@ -38,6 +86,14 @@ function joyeria_session_start(): void
         return;
     }
 
+    $savePath = session_save_path();
+    if ($savePath === '' || !is_dir($savePath) || !is_writable($savePath)) {
+        $fallback = sys_get_temp_dir();
+        if ($fallback !== '' && is_dir($fallback) && is_writable($fallback)) {
+            session_save_path($fallback);
+        }
+    }
+
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     ini_set('session.gc_maxlifetime', (string) $lifetime);
@@ -45,7 +101,7 @@ function joyeria_session_start(): void
 
     $cookieParams = [
         'lifetime' => $lifetime,
-        'path' => '/',
+        'path' => joyeria_session_cookie_path(),
         'secure' => joyeria_request_is_https(),
         'httponly' => true,
         'samesite' => 'Lax',

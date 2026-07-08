@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/includes/joyeria_json_guard.php';
+joyeria_json_guard_begin();
 require_once __DIR__ . '/admin/includes/tienda_auth.php';
 require_once __DIR__ . '/admin/includes/PasswordRecoveryService.php';
 require_once __DIR__ . '/admin/includes/TiendaEmailVerificationService.php';
@@ -58,7 +60,21 @@ $action = isset($input['action']) ? trim((string) $input['action']) : '';
 
 function json_out(array $data): void
 {
+    joyeria_json_clean_buffer();
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+/**
+ * Persiste la sesion antes de responder JSON (login AJAX).
+ */
+function tienda_api_commit_session(): void
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return;
+    }
+    joyeria_session_refresh_cookie(joyeria_session_lifetime_seconds());
+    session_write_close();
 }
 
 function tienda_api_rechazar_turnstile(array $input): bool
@@ -169,18 +185,20 @@ switch ($action) {
                 joyeria_identificador_es_correo($identificador)
                 && auth_login($identificador, $contrasena, $errAdmin, $codeAdmin)
             ) {
-                tienda_logout();
+                unset($_SESSION[JOYERIA_TIENDA_SESSION_KEY]);
+                $redirectAdmin = auth_default_admin_redirect();
+                tienda_api_commit_session();
                 json_out([
                     'ok' => true,
                     'user' => null,
-                    'redirect' => auth_default_admin_redirect(),
+                    'redirect' => $redirectAdmin,
                     'account_type' => 'admin',
                 ]);
-                break;
             }
 
             if (tienda_login($identificador, $contrasena, $errCliente, $failureCode)) {
                 auth_logout();
+                tienda_api_commit_session();
                 json_out([
                     'ok' => true,
                     'user' => tienda_auth_user(),

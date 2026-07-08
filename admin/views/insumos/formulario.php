@@ -12,6 +12,8 @@ $costo_referencia = $_POST['costo_referencia'] ?? ($esEdicion ? ($insumo['costo_
 $aumento_pct = $_POST['aumento_pct'] ?? ($esEdicion ? ($insumo['aumento_pct'] ?? '') : '');
 $precio_venta_sugerido = $_POST['precio_venta_sugerido'] ?? ($esEdicion ? ($insumo['precio_venta_sugerido'] ?? '') : '');
 $observaciones = $_POST['observaciones'] ?? ($esEdicion ? ($insumo['observaciones'] ?? '') : '');
+$promoPaga = $_POST['promo_paga_unidades'] ?? ($esEdicion ? ($insumo['promo_paga_unidades'] ?? '') : '');
+$promoLleva = $_POST['promo_lleva_unidades'] ?? ($esEdicion ? ($insumo['promo_lleva_unidades'] ?? '') : '');
 
 $existenciasPorTienda = $existenciasPorTienda ?? [];
 ?>
@@ -97,6 +99,23 @@ $existenciasPorTienda = $existenciasPorTienda ?? [];
                         <input type="number" class="form-input" name="precio_venta_sugerido" id="precio_venta_sugerido" step="0.01" min="0"
                                value="<?php echo htmlspecialchars((string) $precio_venta_sugerido); ?>">
                         <small class="form-hint"><i class="bi bi-info-circle"></i> Si hay costo + aumento, se calcula y se redondea a múltiplos de 5.</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="promo_paga_unidades"><i class="bi bi-bag-check"></i> Promo: cada (unidades):</label>
+                        <input type="number" class="form-input" name="promo_paga_unidades" id="promo_paga_unidades"
+                               min="1" step="1" value="<?php echo htmlspecialchars((string) $promoPaga); ?>"
+                               placeholder="Ej. 5">
+                        <small class="form-hint">Cada cuántas unidades compradas aplica la promo.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="promo_lleva_unidades"><i class="bi bi-bag-plus"></i> Promo: gratis (unidades):</label>
+                        <input type="number" class="form-input" name="promo_lleva_unidades" id="promo_lleva_unidades"
+                               min="1" step="1" value="<?php echo htmlspecialchars((string) $promoLleva); ?>"
+                               placeholder="Ej. 1 o 6">
+                        <small class="form-hint">Ej. cada 5 cajas, 1 gratis → cada 5 / gratis 1. O lleva 6 paga 5 → gratis 6 (paquete).</small>
                     </div>
                 </div>
 

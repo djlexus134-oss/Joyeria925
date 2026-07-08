@@ -42,6 +42,8 @@ function pos_json_error(Throwable $e): void
 
 function pos_json(array $payload, int $status = 200): void
 {
+    require_once __DIR__ . '/../includes/joyeria_json_guard.php';
+    joyeria_json_clean_buffer();
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE);
@@ -213,6 +215,8 @@ if (in_array($accion, [
     'aplicar_creditos_canje_lote',
     'quitar_credito_canje',
 ], true)) {
+    require_once __DIR__ . '/../includes/joyeria_json_guard.php';
+    joyeria_json_guard_begin();
     $guardPos = auth_current_access_guard();
     if (!$guardPos['allowed']) {
         pos_json(['ok' => false, 'mensaje' => (string) $guardPos['message']], 403);
@@ -387,7 +391,8 @@ if (in_array($accion, [
                 throw new PosAjaxException('codigo_no_encontrado', 'No se pudo agregar el producto.');
             }
 
-            foreach ($estado['detalles'] as $linea) {
+            $indiceInsumoExistente = null;
+            foreach ($estado['detalles'] as $idxLinea => $linea) {
                 $tipo = (string) ($linea['tipo_linea'] ?? '');
                 if ($tipo === 'joya' && ($item['tipo_linea'] ?? '') === 'joya'
                     && (int) ($linea['id_pieza_stock_FK'] ?? 0) === (int) ($item['id_pieza_stock_FK'] ?? -1)) {
@@ -396,23 +401,71 @@ if (in_array($accion, [
                 if ($tipo === 'insumo' && ($item['tipo_linea'] ?? '') === 'insumo'
                     && (int) ($linea['id_insumo_FK'] ?? 0) === (int) ($item['id_insumo_FK'] ?? -1)
                     && (int) ($linea['id_tienda_FK'] ?? 0) === (int) ($item['id_tienda_FK'] ?? -2)) {
-                    throw new InvalidArgumentException('Ese insumo ya fue agregado para la misma tienda.');
+                    $indiceInsumoExistente = (int) $idxLinea;
                 }
             }
 
-            if (($item['tipo_linea'] ?? '') === 'joya') {
-                $idStock = (int) ($item['id_pieza_stock_FK'] ?? 0);
-                $res = $reservaPos->reservar($idStock, pos_obtener_token_reserva());
-                if (!($res['ok'] ?? false)) {
-                    throw new PosAjaxException(
-                        'inventario_no_disponible',
-                        (string) ($res['error'] ?? 'La pieza ya no esta disponible.')
+            if (($item['tipo_linea'] ?? '') === 'insumo' && $indiceInsumoExistente !== null) {
+                $cantActual = isset($estado['detalles'][$indiceInsumoExistente]['cantidad'])
+                    ? (float) $estado['detalles'][$indiceInsumoExistente]['cantidad']
+                    : 1.0;
+                $nuevaCant = $cantActual + 1.0;
+                $existencia = isset($estado['detalles'][$indiceInsumoExistente]['existencia_tienda'])
+                    ? (float) $estado['detalles'][$indiceInsumoExistente]['existencia_tienda']
+                    : (float) ($item['existencia_tienda'] ?? 0);
+                if ($existencia > 0 && $nuevaCant - $existencia > 0.0001) {
+                    throw new InvalidArgumentException(
+                        'Stock insuficiente del insumo (disponible: '
+                        . number_format($existencia, 3, '.', '') . ').'
                     );
                 }
-            }
+                $estado['detalles'][$indiceInsumoExistente]['cantidad'] = number_format($nuevaCant, 3, '.', '');
+                pos_guardar_estado($estado);
+            } else {
+                if (($item['tipo_linea'] ?? '') === 'joya') {
+                    $idStock = (int) ($item['id_pieza_stock_FK'] ?? 0);
+                    $res = $reservaPos->reservar($idStock, pos_obtener_token_reserva());
+                    if (!($res['ok'] ?? false)) {
+                        throw new PosAjaxException(
+                            'inventario_no_disponible',
+                            (string) ($res['error'] ?? 'La pieza ya no esta disponible.')
+                        );
+                    }
+                }
 
-            $estado['detalles'][] = $item;
-            pos_guardar_estado($estado);
+                $estado['detalles'][] = $item;
+                pos_guardar_estado($estado);
+            }
+        }
+
+        if ($accion === 'actualizar_cantidad_linea') {
+            $index = isset($_POST['index']) ? (int) $_POST['index'] : -1;
+            $cantidadRaw = $_POST['cantidad'] ?? null;
+            if ($index < 0 || !isset($estado['detalles'][$index]) || !is_array($estado['detalles'][$index])) {
+                throw new InvalidArgumentException('Linea de ticket no valida.');
+            }
+            $linea = $estado['detalles'][$index];
+            if ((string) ($linea['tipo_linea'] ?? '') !== 'insumo') {
+                throw new InvalidArgumentException('Solo se puede modificar la cantidad de insumos.');
+            }
+            if ($cantidadRaw === null || trim((string) $cantidadRaw) === '' || !is_numeric($cantidadRaw)) {
+                throw new InvalidArgumentException('Ingresa una cantidad valida.');
+            }
+            $cantidad = round((float) $cantidadRaw, 3);
+            if ($cantidad <= 0) {
+                array_splice($estado['detalles'], $index, 1);
+                pos_guardar_estado($estado);
+            } else {
+                $existencia = isset($linea['existencia_tienda']) ? (float) $linea['existencia_tienda'] : 0.0;
+                if ($existencia > 0 && $cantidad - $existencia > 0.0001) {
+                    throw new InvalidArgumentException(
+                        'Stock insuficiente del insumo (disponible: '
+                        . number_format($existencia, 3, '.', '') . ').'
+                    );
+                }
+                $estado['detalles'][$index]['cantidad'] = number_format($cantidad, 3, '.', '');
+                pos_guardar_estado($estado);
+            }
         }
 
         if ($accion === 'quitar_item') {

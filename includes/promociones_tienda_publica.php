@@ -31,32 +31,16 @@ function joyeria_precio_catalogo_con_promo(array $pieza, ?callable $calcularPrec
 {
     if ($calcularPrecioLista !== null) {
         $precioLista = (float) $calcularPrecioLista($pieza);
-        $resolver = joyeria_promocion_tienda_resolver();
-        $idPieza = (int) ($pieza['id_pieza'] ?? 0);
-        $idSub = (int) ($pieza['id_sub_familia'] ?? $pieza['id_subfamilia_FK'] ?? 0);
-        $idFam = (int) ($pieza['id_familia'] ?? $pieza['id_familia_FK'] ?? 0);
-        $promo = $resolver->resolverParaPieza($idPieza, $idSub, $idFam);
-
-        if ($promo === null) {
-            return [
-                'precio_lista' => $precioLista,
-                'precio_final' => $precioLista,
-                'descuento_monto' => 0.0,
-                'porcentaje' => 0.0,
-                'tiene_promocion' => false,
-                'promocion' => null,
-            ];
-        }
-
-        $precios = $resolver->calcularPrecios($precioLista, (float) ($promo['porcentaje_descuento'] ?? 0));
+        require_once __DIR__ . '/../admin/includes/DescuentoTiendaService.php';
+        $info = (new DescuentoTiendaService())->calcularPreciosPieza($pieza, $precioLista, 0);
 
         return [
-            'precio_lista' => $precios['precio_lista'],
-            'precio_final' => $precios['precio_final'],
-            'descuento_monto' => $precios['descuento_monto'],
-            'porcentaje' => $precios['porcentaje'],
-            'tiene_promocion' => $precios['descuento_monto'] > 0,
-            'promocion' => $promo,
+            'precio_lista' => $info['precio_lista'],
+            'precio_final' => $info['precio_final'],
+            'descuento_monto' => $info['descuento_monto'],
+            'porcentaje' => $info['porcentaje'],
+            'tiene_promocion' => $info['tiene_promocion'],
+            'promocion' => $info['promocion'],
         ];
     }
 

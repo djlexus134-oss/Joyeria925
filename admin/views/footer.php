@@ -10,5 +10,7 @@
     </footer>
 </div>
 
+<?php joyeria_session_release_write(); ?>
+
 </body>
 </html>

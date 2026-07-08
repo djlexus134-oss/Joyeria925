@@ -11,6 +11,34 @@ class PromocionTiendaResolver extends Sistema
     /** @var array<int, array<string, mixed>>|null */
     private static ?array $cacheVigentes = null;
 
+    /** @var array<string, bool>|null */
+    private static ?array $cacheColumnasPromociones = null;
+
+    /**
+     * @return array<string, bool>
+     */
+    private function columnasPromocionesTabla(): array
+    {
+        if (self::$cacheColumnasPromociones !== null) {
+            return self::$cacheColumnasPromociones;
+        }
+
+        $out = [];
+        try {
+            $stmt = $this->getDb()->query('SHOW COLUMNS FROM promociones');
+            $cols = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+            if (is_array($cols)) {
+                foreach ($cols as $col) {
+                    $out[(string) $col] = true;
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('PromocionTiendaResolver::columnasPromocionesTabla ' . $e->getMessage());
+        }
+
+        return self::$cacheColumnasPromociones = $out;
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -20,6 +48,11 @@ class PromocionTiendaResolver extends Sistema
             return self::$cacheVigentes;
         }
 
+        $cols = $this->columnasPromocionesTabla();
+        $selectMetal = !empty($cols['id_metal_FK']) ? 'pr.id_metal_FK,' : '';
+        $joinMetal = !empty($cols['id_metal_FK']) ? 'LEFT JOIN metales m ON m.id_metal = pr.id_metal_FK' : '';
+        $nomMetal = !empty($cols['id_metal_FK']) ? 'm.nom_metal' : 'NULL AS nom_metal';
+
         $sql = "SELECT pr.id_promocion,
                        pr.nombre,
                        pr.porcentaje_descuento,
@@ -28,15 +61,18 @@ class PromocionTiendaResolver extends Sistema
                        pr.id_pieza_FK,
                        pr.id_subfamilia_FK,
                        pr.id_familia_FK,
+                       {$selectMetal}
                        pr.aplica_todas_familias,
                        pr.observaciones,
                        p.desc_pieza,
                        sf.nom_sub_familia,
-                       f.nom_familia
+                       f.nom_familia,
+                       {$nomMetal}
                 FROM promociones pr
                 LEFT JOIN piezas p ON p.id_pieza = pr.id_pieza_FK
                 LEFT JOIN sub_familia sf ON sf.id_sub_familia = pr.id_subfamilia_FK
                 LEFT JOIN familias f ON f.id_familia = pr.id_familia_FK
+                {$joinMetal}
                 WHERE pr.activa = 1
                   AND pr.fecha_inicio <= CURDATE()
                   AND pr.fecha_fin >= CURDATE()
@@ -52,7 +88,7 @@ class PromocionTiendaResolver extends Sistema
     /**
      * @return array<string, mixed>|null Promo ganadora o null si no aplica.
      */
-    public function resolverParaPieza(int $idPieza, int $idSubfamilia, int $idFamilia): ?array
+    public function resolverParaPieza(int $idPieza, int $idSubfamilia, int $idFamilia, int $idMetal = 0): ?array
     {
         if ($idPieza <= 0) {
             return null;
@@ -64,7 +100,7 @@ class PromocionTiendaResolver extends Sistema
                 continue;
             }
 
-            $nivel = $this->nivelCoincidencia($promo, $idPieza, $idSubfamilia, $idFamilia);
+            $nivel = $this->nivelCoincidencia($promo, $idPieza, $idSubfamilia, $idFamilia, $idMetal);
             if ($nivel === null) {
                 continue;
             }
@@ -146,7 +182,7 @@ class PromocionTiendaResolver extends Sistema
         $idSub = (int) ($pieza['id_sub_familia'] ?? $pieza['id_subfamilia_FK'] ?? 0);
         $idFam = (int) ($pieza['id_familia'] ?? $pieza['id_familia_FK'] ?? 0);
 
-        $promo = $this->resolverParaPieza($idPieza, $idSub, $idFam);
+        $promo = $this->resolverParaPieza($idPieza, $idSub, $idFam, (int) ($pieza['id_metal_FK'] ?? $pieza['id_metal'] ?? 0));
         if ($promo === null) {
             return [
                 'precio_lista' => $precioLista,
@@ -173,7 +209,7 @@ class PromocionTiendaResolver extends Sistema
     /**
      * @param array<string, mixed> $promo
      */
-    private function nivelCoincidencia(array $promo, int $idPieza, int $idSubfamilia, int $idFamilia): ?int
+    private function nivelCoincidencia(array $promo, int $idPieza, int $idSubfamilia, int $idFamilia, int $idMetal = 0): ?int
     {
         if (!empty($promo['aplica_todas_familias']) && (int) $promo['aplica_todas_familias'] === 1) {
             return $idPieza > 0 ? 0 : null;
@@ -198,6 +234,13 @@ class PromocionTiendaResolver extends Sistema
             : 0;
         if ($idFamPromo > 0) {
             return $idFamPromo === $idFamilia ? 1 : null;
+        }
+
+        $idMetalPromo = isset($promo['id_metal_FK']) && $promo['id_metal_FK'] !== null && $promo['id_metal_FK'] !== ''
+            ? (int) $promo['id_metal_FK']
+            : 0;
+        if ($idMetalPromo > 0) {
+            return $idMetal > 0 && $idMetalPromo === $idMetal ? 1 : null;
         }
 
         return null;

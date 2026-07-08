@@ -29,6 +29,8 @@
                         <th class="name-col">Metal</th>
                         <th class="related-col">Precio Tienda</th>
                         <th class="related-col">Precio Mercado</th>
+                        <th class="related-col">% Mostrador</th>
+                        <th class="related-col">Mayoreo</th>
                         <th class="actions-col">Acciones</th>
                     </tr>
                 </thead>
@@ -39,6 +41,8 @@
                             <td><?php echo htmlspecialchars($metal['nom_metal']); ?></td>
                             <td><?php echo $metal['precio_tienda'] === null ? '-' : '$' . number_format((float) $metal['precio_tienda'], 2, '.', ''); ?></td>
                             <td><?php echo $metal['precio_mercado'] === null ? '-' : '$' . number_format((float) $metal['precio_mercado'], 2, '.', ''); ?></td>
+                            <td><?php echo number_format((float) ($metal['descuento_mostrador_pct'] ?? 0), 2, '.', ''); ?>%</td>
+                            <td><?php echo !empty($metal['aplica_mayoreo']) ? 'Sí' : 'No'; ?></td>
                             <td class="actions-cell">
                                 <div class="actions-stack">
                                     <a href="metales.php?accion=actualizar&id=<?php echo $metal['id_metal']; ?>"

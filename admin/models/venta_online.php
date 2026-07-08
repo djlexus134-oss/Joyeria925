@@ -376,9 +376,10 @@ class VentaOnline extends Sistema
             $delCi->execute();
 
             if ($idCliente > 0) {
+                require_once __DIR__ . '/../includes/ReglasDescuentoService.php';
                 require_once __DIR__ . '/../includes/DescuentoTiendaService.php';
-                $subJoyasLista = (new DescuentoTiendaService())->calcularSubtotalJoyasListaVentaDetalle($db, $idVenta);
-                (new DescuentoTiendaService())->persistirDescuentoMayoreoSiCalifica($idCliente, $subJoyasLista);
+                $subPlataLista = (new ReglasDescuentoService())->calcularSubtotalPlataListaVentaDetalle($db, $idVenta);
+                (new DescuentoTiendaService())->persistirDescuentoMayoreoSiCalifica($idCliente, $subPlataLista);
             }
 
             $db->commit();

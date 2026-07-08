@@ -8,6 +8,12 @@ $accionForm = $esEdicion
 $nombreMetal = $_POST['nom_metal'] ?? ($esEdicion ? ($metal['nom_metal'] ?? '') : '');
 $precioTienda = $_POST['precio_tienda'] ?? ($esEdicion ? ($metal['precio_tienda'] ?? '') : '');
 $precioMercado = $_POST['precio_mercado'] ?? ($esEdicion ? ($metal['precio_mercado'] ?? '') : '');
+$descuentoMostrador = $_POST['descuento_mostrador_pct'] ?? ($esEdicion ? ($metal['descuento_mostrador_pct'] ?? '0') : '0');
+$aplicaMayoreo = isset($_POST['aplica_mayoreo'])
+    ? ((string) $_POST['aplica_mayoreo'] !== '' && (string) $_POST['aplica_mayoreo'] !== '0')
+    : ($esEdicion && !empty($metal['aplica_mayoreo']));
+$umbralPiezas = $_POST['umbral_piezas_descuento'] ?? ($esEdicion ? ($metal['umbral_piezas_descuento'] ?? '') : '');
+$descuentoUmbral = $_POST['descuento_umbral_pct'] ?? ($esEdicion ? ($metal['descuento_umbral_pct'] ?? '') : '');
 ?>
 
 <div class="form-section">
@@ -69,6 +75,44 @@ $precioMercado = $_POST['precio_mercado'] ?? ($esEdicion ? ($metal['precio_merca
                            min="0"
                            value="<?php echo htmlspecialchars((string)$precioMercado); ?>"
                            placeholder="Ej. 500.00 (opcional)">
+                </div>
+            </div>
+
+            <div class="form-divider" style="margin-top:1.25rem;">
+                <p><strong><i class="bi bi-percent"></i> Descuentos en mostrador (POS)</strong></p>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="descuento_mostrador_pct"><i class="bi bi-tag"></i> % descuento mostrador:</label>
+                    <input type="number" class="form-input" name="descuento_mostrador_pct" id="descuento_mostrador_pct"
+                           step="0.01" min="0" max="100"
+                           value="<?php echo htmlspecialchars((string) $descuentoMostrador); ?>">
+                    <small class="form-hint">Ej. Plata 30%, Oro 0%.</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-check-label" for="aplica_mayoreo" style="display:flex;align-items:center;gap:8px;margin-top:1.75rem;">
+                        <input type="checkbox" name="aplica_mayoreo" id="aplica_mayoreo" value="1"
+                            <?php echo $aplicaMayoreo ? 'checked' : ''; ?>>
+                        Aplica descuento mayoreo (umbral en Configuración general)
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="umbral_piezas_descuento"><i class="bi bi-123"></i> Umbral piezas (descuento extra):</label>
+                    <input type="number" class="form-input" name="umbral_piezas_descuento" id="umbral_piezas_descuento"
+                           min="1" step="1" value="<?php echo htmlspecialchars((string) $umbralPiezas); ?>"
+                           placeholder="Ej. 6 para oro">
+                </div>
+                <div class="form-group">
+                    <label for="descuento_umbral_pct"><i class="bi bi-percent"></i> % al alcanzar umbral:</label>
+                    <input type="number" class="form-input" name="descuento_umbral_pct" id="descuento_umbral_pct"
+                           step="0.01" min="0" max="100"
+                           value="<?php echo htmlspecialchars((string) $descuentoUmbral); ?>"
+                           placeholder="Ej. 10">
+                    <small class="form-hint">Se aplica al contar N piezas de este metal en el ticket.</small>
                 </div>
             </div>
 

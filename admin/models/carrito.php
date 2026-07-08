@@ -390,7 +390,28 @@ class Carrito extends Sistema
         }
 
         $svc = new DescuentoTiendaService();
+        $reglas = new ReglasDescuentoService();
+        $metalesMap = $reglas->cargarMetalesActivos();
         $subtotalLista = $svc->calcularSubtotalJoyasListaCarrito($items);
+        $conteoPorMetal = [];
+        $subtotalPlata = 0.0;
+        foreach ($items as $itPre) {
+            if (!is_array($itPre)) {
+                continue;
+            }
+            $idMetalPre = (int) ($itPre['id_metal_FK'] ?? 0);
+            if ($idMetalPre > 0) {
+                $conteoPorMetal[$idMetalPre] = ($conteoPorMetal[$idMetalPre] ?? 0) + 1;
+            }
+            $listaPre = isset($itPre['precio_lista_snapshot']) && $itPre['precio_lista_snapshot'] !== null && $itPre['precio_lista_snapshot'] !== ''
+                ? (float) $itPre['precio_lista_snapshot']
+                : (float) ($itPre['precio_unitario_snapshot'] ?? 0);
+            $metalPre = $metalesMap[$idMetalPre] ?? null;
+            if ($metalPre !== null && !empty($metalPre['aplica_mayoreo']) && (int) $metalPre['aplica_mayoreo'] === 1 && $listaPre > 0) {
+                $subtotalPlata += $listaPre;
+            }
+        }
+        $subtotalPlata = round($subtotalPlata, 2);
         $db = $this->getDb();
         $colsPromo = $this->columnasCarritoPromo($db);
 
@@ -420,8 +441,18 @@ class Carrito extends Sistema
                 'id_pieza' => (int) ($it['id_pieza'] ?? 0),
                 'id_sub_familia' => (int) ($it['id_sub_familia_FK'] ?? 0),
                 'id_familia' => (int) ($it['id_familia_FK'] ?? 0),
+                'id_metal_FK' => (int) ($it['id_metal_FK'] ?? 0),
             ];
-            $precios = $svc->calcularPreciosPieza($piezaCtx, $precioLista, $idCliente, $subtotalLista);
+            $idMetalItem = (int) ($it['id_metal_FK'] ?? 0);
+            $conteoMetalItem = $idMetalItem > 0 ? (int) ($conteoPorMetal[$idMetalItem] ?? 1) : 1;
+            $precios = $svc->calcularPreciosPieza(
+                $piezaCtx,
+                $precioLista,
+                $idCliente,
+                $subtotalLista,
+                $conteoMetalItem,
+                $subtotalPlata
+            );
             $idPromo = null;
             if (($precios['descuento_origen'] ?? '') === 'promocion' && is_array($precios['promocion'] ?? null)) {
                 $idPromo = (int) ($precios['promocion']['id_promocion'] ?? 0) ?: null;
@@ -479,6 +510,7 @@ class Carrito extends Sistema
                        ps.estado AS estado_stock,
                        ps.reservada_hasta{$colsVariante},
                        p.id_pieza,
+                       p.id_metal_FK,
                        p.id_sub_familia_FK,
                        sf.id_familia_FK,
                        p.desc_pieza,

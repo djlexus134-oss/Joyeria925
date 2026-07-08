@@ -133,6 +133,8 @@ $detalles = isset($estadoPos['detalles']) && is_array($estadoPos['detalles']) ? 
         </table>
     </div>
 
+    <div id="pos-descuento-progreso" class="alert-message info" style="display:none;margin-top:0.75rem;"></div>
+
     <div id="pos-creditos-canje-wrap" class="form-section" style="margin-top:0.75rem;">
         <h4 style="margin:0 0 0.5rem 0; font-size:1rem;"><i class="bi bi-arrow-left-right"></i> Credito por devolucion (canje)</h4>
         <div id="pos-creditos-canje-inner" class="text-muted" style="font-size:0.95rem;">Sin creditos en este ticket. Arma la lista en Devoluciones abajo y pulsa «Aplicar créditos al ticket».</div>
@@ -923,6 +925,86 @@ $detalles = isset($estadoPos['detalles']) && is_array($estadoPos['detalles']) ? 
         return fd;
     }
 
+    function renderCantidadCelda(linea, idx) {
+        var tipo = (linea.tipo_linea || '').toLowerCase();
+        var cant = parseFloat(linea.cantidad || 0);
+        if (tipo === 'insumo') {
+            var maxAttr = linea.existencia_tienda ? ' max="' + parseFloat(linea.existencia_tienda).toFixed(3) + '"' : '';
+            return '<div class="pos-qty-control" style="display:flex;align-items:center;gap:4px;">'
+                + '<button type="button" class="btn-action-secondary pos-qty-minus" data-index="' + idx + '" style="padding:2px 8px;">−</button>'
+                + '<input type="number" class="form-input pos-qty-input" data-index="' + idx + '" step="0.001" min="0.001"' + maxAttr
+                + ' value="' + cant.toFixed(3) + '" style="width:72px;padding:4px 6px;">'
+                + '<button type="button" class="btn-action-secondary pos-qty-plus" data-index="' + idx + '" style="padding:2px 8px;">+</button>'
+                + '</div>';
+        }
+        return cant.toFixed(3);
+    }
+
+    function subtotalLineaDesdeTotales(idx, linea, totales) {
+        var calc = totales && totales.lineas_calculadas ? totales.lineas_calculadas[idx] : null;
+        if (calc && calc.subtotal_neto != null) {
+            return parseFloat(calc.subtotal_neto).toFixed(2);
+        }
+        var cant = parseFloat(linea.cantidad || 0);
+        var precio = parseFloat(linea.precio_unitario || 0);
+        return (cant * precio).toFixed(2);
+    }
+
+    function renderProgresoDescuentos(totales) {
+        var box = qs('pos-descuento-progreso');
+        if (!box || !totales) {
+            if (box) box.style.display = 'none';
+            return;
+        }
+        var partes = [];
+        (totales.descuento_progreso || []).forEach(function (p) {
+            if (!p || !p.umbral) return;
+            var txt = (p.nom_metal || 'Metal') + ': ' + (p.conteo || 0) + '/' + p.umbral + ' piezas';
+            if (p.descuento_activo) {
+                txt += ' — descuento ' + (p.descuento_umbral_pct || 0) + '% activo';
+            } else if (p.faltan > 0) {
+                txt += ' — faltan ' + p.faltan + ' para descuento';
+            }
+            partes.push(txt);
+        });
+        (totales.insumo_promo_progreso || []).forEach(function (p) {
+            if (!p || !p.lleva) return;
+            var txt = 'Insumo línea ' + ((p.index || 0) + 1) + ': ';
+            if (parseInt(p.lleva, 10) > parseInt(p.paga, 10)) {
+                txt += 'lleva ' + p.lleva + ' paga ' + p.paga;
+            } else {
+                txt += 'cada ' + p.paga + ', ' + p.lleva + ' gratis';
+            }
+            if (p.unidades_gratis_actuales > 0) {
+                txt += ' — ' + p.unidades_gratis_actuales + ' gratis';
+            } else if (p.faltan_para_gratis > 0) {
+                txt += ' — faltan ' + p.faltan_para_gratis + ' para unidad gratis';
+            }
+            partes.push(txt);
+        });
+        if (partes.length === 0) {
+            box.style.display = 'none';
+            box.innerHTML = '';
+            return;
+        }
+        box.style.display = '';
+        box.innerHTML = '<p style="margin:0;"><i class="bi bi-percent"></i> <strong>Progreso de descuentos:</strong> '
+            + partes.map(function (t) { return '<span style="display:inline-block;margin:2px 8px 2px 0;">' + t + '</span>'; }).join('')
+            + '</p>';
+    }
+
+    var posQtyDebounce = null;
+    function actualizarCantidadLinea(index, cantidad) {
+        return postAction('actualizar_cantidad_linea', {
+            index: String(index),
+            cantidad: String(cantidad)
+        }).then(function (res) {
+            actualizarVista(res);
+        }).catch(function (err) {
+            showPosError(err, 'No se pudo actualizar la cantidad.');
+        });
+    }
+
     function actualizarVista(data) {
         if (!data || !data.estado) return;
         aplicarMetadatosDesdeEstado(data.estado);
@@ -938,14 +1020,24 @@ $detalles = isset($estadoPos['detalles']) && is_array($estadoPos['detalles']) ? 
             detalles.forEach(function (linea, idx) {
                 var cant = parseFloat(linea.cantidad || 0);
                 var precio = parseFloat(linea.precio_unitario || 0);
-                var subtotal = cant * precio;
+                var subtotal = subtotalLineaDesdeTotales(idx, linea, data.totales);
+                var promoHint = '';
+                if ((linea.tipo_linea || '') === 'insumo' && linea.promo_lleva_unidades && linea.promo_paga_unidades) {
+                    var pP = parseInt(linea.promo_paga_unidades, 10);
+                    var pL = parseInt(linea.promo_lleva_unidades, 10);
+                    if (pL > pP) {
+                        promoHint = '<br><small class="text-muted">Lleva ' + pL + ' paga ' + pP + '</small>';
+                    } else {
+                        promoHint = '<br><small class="text-muted">Cada ' + pP + ', ' + pL + ' gratis</small>';
+                    }
+                }
                 html += '<tr>'
                     + '<td>' + (linea.tipo_linea || '') + '</td>'
                     + '<td>' + (linea.codigo || '') + '</td>'
-                    + '<td>' + (linea.descripcion || '') + '</td>'
-                    + '<td>' + cant.toFixed(3) + '</td>'
+                    + '<td>' + (linea.descripcion || '') + promoHint + '</td>'
+                    + '<td>' + renderCantidadCelda(linea, idx) + '</td>'
                     + '<td>$' + precio.toFixed(2) + '</td>'
-                    + '<td>$' + subtotal.toFixed(2) + '</td>'
+                    + '<td>$' + subtotal + '</td>'
                     + '<td><button type="button" class="btn-action-danger btn-eliminar-item" data-index="' + idx + '"><i class="bi bi-trash"></i> Quitar</button></td>'
                     + '</tr>';
             });
@@ -1000,6 +1092,7 @@ $detalles = isset($estadoPos['detalles']) && is_array($estadoPos['detalles']) ? 
                 }
             }
             actualizarMontosPagosSegunTotal(data.totales.total);
+            renderProgresoDescuentos(data.totales);
             if (window.PosSpeiQr && typeof window.PosSpeiQr.actualizarEstadoBoton === 'function') {
                 window.PosSpeiQr.actualizarEstadoBoton();
             }
@@ -1191,6 +1284,28 @@ $detalles = isset($estadoPos['detalles']) && is_array($estadoPos['detalles']) ? 
     });
 
     tablaBody.addEventListener('click', function (ev) {
+        var btnMinus = ev.target.closest('.pos-qty-minus');
+        if (btnMinus) {
+            var idxM = parseInt(btnMinus.getAttribute('data-index'), 10);
+            var inpM = tablaBody.querySelector('.pos-qty-input[data-index="' + idxM + '"]');
+            if (!inpM) return;
+            var valM = parseFloat(inpM.value || '0') - 1;
+            if (!isFinite(valM) || valM <= 0) {
+                if (!confirm('¿Quitar esta línea del ticket?')) return;
+                valM = 0;
+            }
+            actualizarCantidadLinea(idxM, valM);
+            return;
+        }
+        var btnPlus = ev.target.closest('.pos-qty-plus');
+        if (btnPlus) {
+            var idxP = parseInt(btnPlus.getAttribute('data-index'), 10);
+            var inpP = tablaBody.querySelector('.pos-qty-input[data-index="' + idxP + '"]');
+            if (!inpP) return;
+            var valP = parseFloat(inpP.value || '0') + 1;
+            actualizarCantidadLinea(idxP, valP);
+            return;
+        }
         var btn = ev.target.closest('.btn-eliminar-item');
         if (!btn) return;
         postAction('quitar_item', { index: btn.getAttribute('data-index') || '' })
@@ -1201,6 +1316,24 @@ $detalles = isset($estadoPos['detalles']) && is_array($estadoPos['detalles']) ? 
             .catch(function (err) {
                 showMessage(err.message || 'Error al quitar linea.', 'error');
             });
+    });
+
+    tablaBody.addEventListener('change', function (ev) {
+        var inp = ev.target.closest('.pos-qty-input');
+        if (!inp) return;
+        var idx = parseInt(inp.getAttribute('data-index'), 10);
+        var val = parseFloat(inp.value || '0');
+        if (!isFinite(val) || val <= 0) {
+            if (!confirm('¿Quitar esta línea del ticket?')) {
+                syncMeta();
+                return;
+            }
+            val = 0;
+        }
+        clearTimeout(posQtyDebounce);
+        posQtyDebounce = setTimeout(function () {
+            actualizarCantidadLinea(idx, val);
+        }, 400);
     });
 
     var credWrap = qs('pos-creditos-canje-wrap');

@@ -100,6 +100,15 @@ class TicketEscPosBuilder
             }
             $detalle = sprintf('%s x $%s', $this->formatQty($cantidad), $this->formatMoney($precio));
             $out .= $this->lineItemColumns($detalle, '$' . $this->formatMoney($importe)) . "\n";
+
+            $descLinea = (float) ($linea['descuento_monto'] ?? 0);
+            $descPctLinea = (float) ($linea['descuento_porcentaje'] ?? 0);
+            if ($descLinea > 0.009) {
+                $etiquetaDesc = $descPctLinea > 0.009
+                    ? sprintf('  Desc -%s%% (-$%s)', $this->formatMoney($descPctLinea), $this->formatMoney($descLinea))
+                    : sprintf('  Desc -$%s', $this->formatMoney($descLinea));
+                $out .= $this->text($etiquetaDesc) . "\n";
+            }
         }
 
         $out .= $this->text(str_repeat('-', $this->width)) . "\n";
@@ -116,15 +125,30 @@ class TicketEscPosBuilder
             $out .= $this->text(str_repeat('-', $this->width)) . "\n";
         }
 
+        $subtotalLista = (float) ($ticket['subtotal_lista'] ?? 0);
         $subtotal = (float) ($ticket['subtotal'] ?? 0);
         $descuento = (float) ($ticket['descuento_monto'] ?? 0);
         $impuesto = (float) ($ticket['impuesto_monto'] ?? 0);
         $total = (float) ($ticket['total'] ?? 0);
 
-        $out .= $this->lineItemColumns('Subtotal', '$' . $this->formatMoney($subtotal)) . "\n";
-        if ($descuento > 0) {
+        if ($subtotalLista > 0.009 && abs($subtotalLista - $subtotal) > 0.009) {
+            $out .= $this->lineItemColumns('Subtotal lista', '$' . $this->formatMoney($subtotalLista)) . "\n";
+        }
+        foreach ($ticket['descuento_desglose'] ?? [] as $itemDesc) {
+            if (!is_array($itemDesc)) {
+                continue;
+            }
+            $montoDesc = (float) ($itemDesc['monto'] ?? 0);
+            if ($montoDesc <= 0.009) {
+                continue;
+            }
+            $etiqueta = trim((string) ($itemDesc['etiqueta'] ?? 'Descuento'));
+            $out .= $this->lineItemColumns($etiqueta, '-$' . $this->formatMoney($montoDesc)) . "\n";
+        }
+        if ($descuento > 0.009 && empty($ticket['descuento_desglose'])) {
             $out .= $this->lineItemColumns('Descuento', '-$' . $this->formatMoney($descuento)) . "\n";
         }
+        $out .= $this->lineItemColumns('Subtotal', '$' . $this->formatMoney($subtotal)) . "\n";
         $montoCanje = (float) ($ticket['monto_canje'] ?? 0);
         if ($montoCanje > 0) {
             $out .= $this->lineItemColumns('Descuento por canje', '-$' . $this->formatMoney($montoCanje)) . "\n";

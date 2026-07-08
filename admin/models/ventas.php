@@ -9,6 +9,7 @@ class Ventas extends Sistema
 {
     private ?array $cacheColumnasVentaDetalle = null;
     private ?array $cacheColumnasVentaPagos = null;
+    private ?array $cacheColumnasInsumos = null;
 
     private function normalizarDecimal($valor, int $decimales = 2): string
     {
@@ -169,10 +170,13 @@ class Ventas extends Sistema
                        ps.codigo_auxiliar AS pieza_codigo_auxiliar,
                        ps.codigo_barras AS pieza_codigo_barras,
                        ps.estado AS estado_pieza,
-                       i.sku_codigo AS insumo_codigo
+                       i.sku_codigo AS insumo_codigo,
+                       p.id_metal_FK AS pieza_id_metal,
+                       m.nom_metal AS pieza_metal_nombre
                 FROM venta_detalle vd
                 LEFT JOIN piezas_stock ps ON vd.id_pieza_stock_FK = ps.id_pieza_stock
                 LEFT JOIN piezas p ON ps.id_pieza_FK = p.id_pieza
+                LEFT JOIN metales m ON m.id_metal = p.id_metal_FK
                 LEFT JOIN insumos i ON vd.id_insumo_FK = i.id_insumo
                 WHERE vd.id_venta_FK = :id
                 ORDER BY vd.id_venta_detalle ASC";
@@ -415,11 +419,18 @@ class Ventas extends Sistema
                     ps.variante_valor,
                     {$colsMatriz}
                     {$selectCatalogo}
+                    p.id_pieza,
+                    p.id_metal_FK,
+                    p.id_sub_familia_FK,
+                    sf.id_familia_FK,
                     p.desc_pieza,
                     p.costo,
-                    p.aumento_pct
+                    p.aumento_pct,
+                    m.nom_metal
              FROM piezas_stock ps
              INNER JOIN piezas p ON p.id_pieza = ps.id_pieza_FK
+             INNER JOIN metales m ON m.id_metal = p.id_metal_FK
+             INNER JOIN sub_familia sf ON sf.id_sub_familia = p.id_sub_familia_FK
              {$joinCatalogo}
              WHERE (ps.codigo_auxiliar = :codigo OR ps.codigo_barras = :codigo2)
              ORDER BY ps.id_pieza_stock DESC
@@ -478,6 +489,11 @@ class Ventas extends Sistema
                 'item' => [
                     'tipo_linea' => 'joya',
                     'id_pieza_stock_FK' => (int) $pieza['id_pieza_stock'],
+                    'id_pieza_FK' => (int) ($pieza['id_pieza'] ?? 0),
+                    'id_metal_FK' => (int) ($pieza['id_metal_FK'] ?? 0),
+                    'id_subfamilia_FK' => (int) ($pieza['id_sub_familia_FK'] ?? 0),
+                    'id_familia_FK' => (int) ($pieza['id_familia_FK'] ?? 0),
+                    'nom_metal' => (string) ($pieza['nom_metal'] ?? ''),
                     'codigo' => $codigoPieza,
                     'descripcion' => $desc,
                     'cantidad' => 1,
@@ -488,7 +504,14 @@ class Ventas extends Sistema
 
         $sqlInsumo = "SELECT i.id_insumo,
                              i.nombre,
-                             i.sku_codigo,
+                             i.sku_codigo";
+        $colsInsumo = $this->obtenerColumnasInsumos($db);
+        if (!empty($colsInsumo['promo_paga_unidades']) && !empty($colsInsumo['promo_lleva_unidades'])) {
+            $sqlInsumo .= ",
+                             i.promo_paga_unidades,
+                             i.promo_lleva_unidades";
+        }
+        $sqlInsumo .= ",
                              COALESCE(i.precio_venta_sugerido, 0) AS precio_venta_sugerido,
                              ie.id_tienda_FK,
                              ie.cantidad,
@@ -527,6 +550,10 @@ class Ventas extends Sistema
                     'cantidad' => 1,
                     'precio_unitario' => $this->normalizarDecimal($precioInsumo > 0 ? $precioInsumo : 0.01),
                     'existencia_tienda' => number_format((float) $insumo['cantidad'], 3, '.', ''),
+                    'promo_paga_unidades' => isset($insumo['promo_paga_unidades']) && $insumo['promo_paga_unidades'] !== null
+                        ? (int) $insumo['promo_paga_unidades'] : null,
+                    'promo_lleva_unidades' => isset($insumo['promo_lleva_unidades']) && $insumo['promo_lleva_unidades'] !== null
+                        ? (int) $insumo['promo_lleva_unidades'] : null,
                 ],
             ];
         }
@@ -576,48 +603,17 @@ class Ventas extends Sistema
 
     public function calcularTotalesPuntoVenta(array $detalles, ?int $idCliente, int $idImpuesto, float $montoCreditoCanje = 0.0): array
     {
-        $subtotal = 0.0;
-        $subtotalPiezas = 0.0;
-        $subtotalInsumos = 0.0;
-        $conteoPiezas = 0;
-        foreach ($detalles as $linea) {
-            if (!is_array($linea)) {
-                continue;
-            }
-            $cantidad = isset($linea['cantidad']) ? (float) $linea['cantidad'] : 0.0;
-            $precio = isset($linea['precio_unitario']) ? (float) $linea['precio_unitario'] : 0.0;
-            if ($cantidad <= 0 || $precio <= 0) {
-                continue;
-            }
-            $importeLinea = $cantidad * $precio;
-            $subtotal += $importeLinea;
-            $tipo = isset($linea['tipo_linea']) ? mb_strtolower(trim((string) $linea['tipo_linea'])) : '';
-            if ($tipo === '') {
-                $tipo = isset($linea['id_insumo_FK']) ? 'insumo' : 'joya';
-            }
-            if ($tipo === 'insumo') {
-                $subtotalInsumos += $importeLinea;
-            } else {
-                $subtotalPiezas += $importeLinea;
-                $conteoPiezas += (int) round($cantidad);
-            }
-        }
+        require_once __DIR__ . '/../includes/ReglasDescuentoService.php';
+        $reglas = new ReglasDescuentoService();
+        $calc = $reglas->calcularTotalesPos($detalles, $idCliente);
 
         $impuesto = $this->obtenerImpuestoPorId($idImpuesto);
         if (!$impuesto) {
             throw new InvalidArgumentException('El impuesto seleccionado no existe.');
         }
 
-        require_once __DIR__ . '/../includes/DescuentoTiendaService.php';
-        $svcMayoreo = new DescuentoTiendaService();
-        $subtotalJoyasLista = $svcMayoreo->calcularSubtotalJoyasListaPos($detalles);
-        $descuentoRatePiezas = $svcMayoreo->resolverDescuentoPorcentajeJoyasPos($idCliente, $subtotalJoyasLista);
-        $descuentoRateInsumos = $this->resolverDescuentoPorcentajeLinea('insumo', $idCliente);
-        $descuentoMonto = ($subtotalPiezas * ($descuentoRatePiezas / 100))
-            + ($subtotalInsumos * ($descuentoRateInsumos / 100));
-        $descuentoRateEfectivo = $subtotal > 0.00001
-            ? ($descuentoMonto / $subtotal) * 100
-            : 0.0;
+        $subtotal = (float) ($calc['subtotal'] ?? 0);
+        $descuentoMonto = (float) ($calc['descuento_monto'] ?? 0);
         $basePreCredito = max(0, $subtotal - $descuentoMonto);
         $credito = max(0.0, min((float) $montoCreditoCanje, $basePreCredito));
         $base = max(0, $basePreCredito - $credito);
@@ -627,19 +623,23 @@ class Ventas extends Sistema
 
         return [
             'subtotal' => $this->normalizarDecimal($subtotal),
-            'subtotal_piezas' => $this->normalizarDecimal($subtotalPiezas),
-            'subtotal_insumos' => $this->normalizarDecimal($subtotalInsumos),
-            'descuento_porcentaje' => $this->normalizarDecimal($descuentoRateEfectivo),
-            'descuento_porcentaje_piezas' => $this->normalizarDecimal($descuentoRatePiezas),
-            'descuento_porcentaje_insumos' => $this->normalizarDecimal($descuentoRateInsumos),
+            'subtotal_piezas' => $this->normalizarDecimal((float) ($calc['subtotal_piezas'] ?? 0)),
+            'subtotal_insumos' => $this->normalizarDecimal((float) ($calc['subtotal_insumos'] ?? 0)),
+            'descuento_porcentaje' => $this->normalizarDecimal((float) ($calc['descuento_porcentaje'] ?? 0)),
+            'descuento_porcentaje_piezas' => $this->normalizarDecimal((float) ($calc['descuento_porcentaje_piezas'] ?? 0)),
+            'descuento_porcentaje_insumos' => $this->normalizarDecimal((float) ($calc['descuento_porcentaje_insumos'] ?? 0)),
             'descuento_monto' => $this->normalizarDecimal($descuentoMonto),
             'monto_credito_canje' => $this->normalizarDecimal($credito),
             'base_gravable' => $this->normalizarDecimal($base),
             'impuesto_porcentaje' => $this->normalizarDecimal($impuestoRate),
             'impuesto_monto' => $this->normalizarDecimal($impuestoMonto),
             'total' => $this->normalizarDecimal($total),
-            'conteo_piezas' => $conteoPiezas,
-            'ticket_mixto' => $subtotalPiezas > 0.00001 && $subtotalInsumos > 0.00001,
+            'conteo_piezas' => (int) ($calc['conteo_piezas'] ?? 0),
+            'ticket_mixto' => !empty($calc['ticket_mixto']),
+            'lineas_calculadas' => $calc['lineas_calculadas'] ?? [],
+            'descuento_progreso' => $calc['descuento_progreso'] ?? [],
+            'insumo_promo_progreso' => $calc['insumo_promo_progreso'] ?? [],
+            'descuento_detalle' => $calc['descuento_detalle'] ?? [],
         ];
     }
 
@@ -1003,10 +1003,11 @@ class Ventas extends Sistema
             }
 
             if ($idCliente !== null && $idCliente > 0) {
+                require_once __DIR__ . '/../includes/ReglasDescuentoService.php';
                 require_once __DIR__ . '/../includes/DescuentoTiendaService.php';
                 $detDecoded = $this->decodificarDetallesDesdePayload($data);
-                $subJoyasLista = (new DescuentoTiendaService())->calcularSubtotalJoyasListaPos($detDecoded);
-                (new DescuentoTiendaService())->persistirDescuentoMayoreoSiCalifica((int) $idCliente, $subJoyasLista);
+                $subPlataLista = (new ReglasDescuentoService())->calcularSubtotalPlataListaPos($detDecoded);
+                (new DescuentoTiendaService())->persistirDescuentoMayoreoSiCalifica((int) $idCliente, $subPlataLista);
             }
 
             $db->commit();
@@ -1051,6 +1052,13 @@ class Ventas extends Sistema
         }
 
         $posReservaToken = trim((string) ($data['pos_reserva_token'] ?? ''));
+
+        $idClienteVenta = isset($data['id_cliente_FK']) && (int) $data['id_cliente_FK'] > 0
+            ? (int) $data['id_cliente_FK']
+            : null;
+
+        require_once __DIR__ . '/../includes/ReglasDescuentoService.php';
+        $lineasCalc = (new ReglasDescuentoService())->calcularTotalesPos($raw, $idClienteVenta)['lineas_calculadas'] ?? [];
 
         $cols = $this->obtenerColumnasVentaDetalle($db);
         $insertCols = ['id_venta_FK'];
@@ -1151,9 +1159,6 @@ class Ventas extends Sistema
 
         $piezasIncluidas = [];
         $insumosIncluidos = [];
-        $idClienteVenta = isset($data['id_cliente_FK']) && (int) $data['id_cliente_FK'] > 0
-            ? (int) $data['id_cliente_FK']
-            : null;
 
         foreach ($raw as $index => $linea) {
             if (!is_array($linea)) {
@@ -1218,10 +1223,14 @@ class Ventas extends Sistema
                 }
                 $idTiendaOrigenLinea = (int) ($psRow['id_tienda_origen'] ?? 0);
 
-                $descuentoRateLinea = $this->resolverDescuentoPorcentajeLinea('joya', $idClienteVenta);
                 $subtotalBruto = (float) $pu * $cantJoy;
-                $descuentoLinea = $this->normalizarDecimal($subtotalBruto * ($descuentoRateLinea / 100));
-                $subtotal = $this->normalizarDecimal(max(0, $subtotalBruto - (float) $descuentoLinea));
+                $calcLinea = isset($lineasCalc[$index]) && is_array($lineasCalc[$index]) ? $lineasCalc[$index] : null;
+                $descuentoLinea = $calcLinea !== null
+                    ? $this->normalizarDecimal((float) ($calcLinea['descuento_monto'] ?? 0))
+                    : $this->normalizarDecimal($subtotalBruto * ($this->resolverDescuentoPorcentajeLinea('joya', $idClienteVenta) / 100));
+                $subtotal = $calcLinea !== null
+                    ? $this->normalizarDecimal((float) ($calcLinea['subtotal_neto'] ?? max(0, $subtotalBruto - (float) $descuentoLinea)))
+                    : $this->normalizarDecimal(max(0, $subtotalBruto - (float) $descuentoLinea));
                 $precioFinalUnit = $this->normalizarDecimal((float) $subtotal / max(1.0, $cantJoy));
                 $costoUnitario = $this->normalizarDecimal(max(0.01, (float) ($psRow['costo_unitario'] ?? 0)));
 
@@ -1314,10 +1323,14 @@ class Ventas extends Sistema
             }
 
             $qtyStrIns = $this->normalizarCantidadLinea($cantFloat);
-            $descuentoRateLineaIns = $this->resolverDescuentoPorcentajeLinea('insumo', $idClienteVenta);
             $subtotalBrutoIns = (float) $pu * $cantFloat;
-            $descuentoLineaIns = $this->normalizarDecimal($subtotalBrutoIns * ($descuentoRateLineaIns / 100));
-            $subtotalIns = $this->normalizarDecimal(max(0, $subtotalBrutoIns - (float) $descuentoLineaIns));
+            $calcLineaIns = isset($lineasCalc[$index]) && is_array($lineasCalc[$index]) ? $lineasCalc[$index] : null;
+            $descuentoLineaIns = $calcLineaIns !== null
+                ? $this->normalizarDecimal((float) ($calcLineaIns['descuento_monto'] ?? 0))
+                : $this->normalizarDecimal($subtotalBrutoIns * ($this->resolverDescuentoPorcentajeLinea('insumo', $idClienteVenta) / 100));
+            $subtotalIns = $calcLineaIns !== null
+                ? $this->normalizarDecimal((float) ($calcLineaIns['subtotal_neto'] ?? max(0, $subtotalBrutoIns - (float) $descuentoLineaIns)))
+                : $this->normalizarDecimal(max(0, $subtotalBrutoIns - (float) $descuentoLineaIns));
             $precioFinalUnitIns = $this->normalizarDecimal((float) $subtotalIns / max(0.001, $cantFloat));
 
             $stAc = $db->prepare('SELECT COALESCE(costo_referencia, 0) AS costo_referencia FROM insumos WHERE id_insumo = :id AND activo = 1 LIMIT 1');
@@ -1400,6 +1413,32 @@ class Ventas extends Sistema
         $this->cacheColumnasVentaDetalle = $map;
 
         return $map;
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function obtenerColumnasInsumos(PDO $db): array
+    {
+        if ($this->cacheColumnasInsumos !== null) {
+            return $this->cacheColumnasInsumos;
+        }
+
+        $map = [];
+        try {
+            $stmt = $db->query('SHOW COLUMNS FROM insumos');
+            $rows = $stmt !== false ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            foreach ($rows as $row) {
+                $field = isset($row['Field']) ? trim((string) $row['Field']) : '';
+                if ($field !== '') {
+                    $map[$field] = true;
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('Ventas::obtenerColumnasInsumos ' . $e->getMessage());
+        }
+
+        return $this->cacheColumnasInsumos = $map;
     }
 
     private function obtenerColumnasVentaPagos(PDO $db): array
