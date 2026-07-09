@@ -121,11 +121,9 @@ function joyeria_recuento_parse_fecha_filtro(?string $raw): ?string
  */
 function joyeria_recuento_normalizar_codigo_escaneo(string $raw): string
 {
-    $t = trim($raw);
-    if ($t === '') {
-        return '';
-    }
-    return preg_replace('/[\x00-\x1F\x7F]+/u', '', $t) ?? $t;
+    require_once __DIR__ . '/../includes/barcode_scan_helpers.php';
+
+    return joyeria_normalizar_codigo_escaneo($raw);
 }
 
 /**

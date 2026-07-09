@@ -168,6 +168,11 @@ $ultimaLinea = !empty($detalles) ? $detalles[count($detalles) - 1] : null;
     }
 
     function agregarPorCodigo(codigo) {
+        if (window.JoyeriaBarcodeInput && typeof JoyeriaBarcodeInput.normalizeScanCode === 'function') {
+            codigo = JoyeriaBarcodeInput.normalizeScanCode(codigo);
+        } else if (/^\d+-\d+$/.test(String(codigo || '').trim())) {
+            codigo = String(codigo).trim().replace('-', '/');
+        }
         if (!codigo || agregando) {
             return Promise.resolve();
         }

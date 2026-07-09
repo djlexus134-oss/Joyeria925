@@ -61,8 +61,8 @@ if ($esEdicion && !empty($orden['id_pieza_stock_FK'])) {
 
     <?php if ($esEdicion): ?>
         <div class="module-actions" style="margin-bottom:16px;">
-            <a href="ordenes_taller.php?accion=imprimir&id=<?php echo (int) $orden['id_orden_taller']; ?>" class="btn-action-secondary" target="_blank">
-                <i class="bi bi-printer"></i> Imprimir comprobante
+            <a href="ordenes_taller.php?accion=imprimir&id=<?php echo (int) $orden['id_orden_taller']; ?>" class="btn-action-secondary" title="Imprimir ticket en la impresora de caja">
+                <i class="bi bi-printer"></i> Imprimir ticket
             </a>
             <a href="ordenes_taller.php?accion=leer" class="btn-action-secondary">
                 <i class="bi bi-arrow-left"></i> Volver al listado

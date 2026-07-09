@@ -386,7 +386,8 @@ class Ventas extends Sistema
      */
     public function resolverItemPuntoVenta(string $codigo, ?int $idTiendaPreferida = null): array
     {
-        $codigo = trim($codigo);
+        require_once __DIR__ . '/../../includes/barcode_scan_helpers.php';
+        $codigo = joyeria_normalizar_codigo_escaneo($codigo);
         if ($codigo === '') {
             return [
                 'ok' => false,

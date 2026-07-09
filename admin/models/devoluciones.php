@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../sistema.class.php';
+require_once __DIR__ . '/../../includes/barcode_scan_helpers.php';
 require_once __DIR__ . '/ventas.php';
 require_once __DIR__ . '/apartado_gestion.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -14,6 +15,11 @@ class Devoluciones extends Sistema
         $ajustado = $numero + ($numero >= 0 ? $epsilon : -$epsilon);
 
         return number_format(round($ajustado, $decimales), $decimales, '.', '');
+    }
+
+    private function normalizarCodigoEscaneo(string $codigo): string
+    {
+        return joyeria_normalizar_codigo_escaneo($codigo);
     }
 
     public function listarPorVenta(int $idVenta): array
@@ -448,7 +454,7 @@ class Devoluciones extends Sistema
         $idUsuario = (int) ($data['id_usuario_FK'] ?? 0);
         $idCliente = (int) ($data['id_cliente_FK'] ?? 0);
         $idVenta = (int) ($data['id_venta_FK'] ?? $data['id_venta'] ?? 0);
-        $codigo = trim((string) ($data['codigo'] ?? ''));
+        $codigo = $this->normalizarCodigoEscaneo((string) ($data['codigo'] ?? ''));
         $idPiezaStock = (int) ($data['id_pieza_stock_FK'] ?? 0);
         $motivo = trim((string) ($data['motivo'] ?? ''));
 
@@ -734,7 +740,7 @@ class Devoluciones extends Sistema
 
     private function resolverIdPiezaStockPorCodigoVendida(PDO $db, string $codigoPieza): int
     {
-        $codigoPieza = trim($codigoPieza);
+        $codigoPieza = $this->normalizarCodigoEscaneo($codigoPieza);
         if ($codigoPieza === '') {
             return 0;
         }
@@ -794,7 +800,7 @@ class Devoluciones extends Sistema
         if ($idPiezaStockFk !== null && $idPiezaStockFk > 0) {
             $idPiezaStock = $idPiezaStockFk;
         } else {
-            $codigoPieza = trim($codigoPieza);
+            $codigoPieza = $this->normalizarCodigoEscaneo($codigoPieza);
             if ($codigoPieza === '') {
                 throw new InvalidArgumentException('Indica codigo de pieza o id_pieza_stock_FK de la linea en la venta.');
             }
@@ -1113,7 +1119,7 @@ class Devoluciones extends Sistema
         $idFormaPago = isset($data['id_forma_pago_FK']) && $data['id_forma_pago_FK'] !== '' && $data['id_forma_pago_FK'] !== null
             ? (int) $data['id_forma_pago_FK']
             : 0;
-        $codigo = trim((string) ($data['codigo'] ?? ''));
+        $codigo = $this->normalizarCodigoEscaneo((string) ($data['codigo'] ?? ''));
         $idPiezaStock = (int) ($data['id_pieza_stock_FK'] ?? 0);
 
         if ($acreditarMonedero) {
@@ -1632,7 +1638,7 @@ class Devoluciones extends Sistema
         $idEmpleado = (int) ($data['id_empleado_FK'] ?? 0);
         $idUsuario = (int) ($data['id_usuario_FK'] ?? 0);
         $idCliente = (int) ($data['id_cliente_FK'] ?? 0);
-        $codigo = trim((string) ($data['codigo'] ?? ''));
+        $codigo = $this->normalizarCodigoEscaneo((string) ($data['codigo'] ?? ''));
         $idVenta = (int) ($data['id_venta_FK'] ?? $data['id_venta'] ?? 0);
         $idPiezaStock = (int) ($data['id_pieza_stock_FK'] ?? 0);
         $motivo = trim((string) ($data['motivo'] ?? ''));

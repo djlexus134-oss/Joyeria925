@@ -1209,6 +1209,11 @@ $detalles = isset($estadoPos['detalles']) && is_array($estadoPos['detalles']) ? 
     });
 
     function agregarPorCodigo(codigo, desdeCamara) {
+        if (window.JoyeriaBarcodeInput && typeof JoyeriaBarcodeInput.normalizeScanCode === 'function') {
+            codigo = JoyeriaBarcodeInput.normalizeScanCode(codigo);
+        } else if (/^\d+-\d+$/.test(String(codigo || '').trim())) {
+            codigo = String(codigo).trim().replace('-', '/');
+        }
         if (!codigo) {
             showMessage('Ingresa un código para agregar un producto.', 'info');
             if (desdeCamara && window.JoyeriaPosBarcodeScanner) {

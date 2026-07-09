@@ -169,7 +169,8 @@ class InventarioRecuento extends Sistema
      */
     public function resolverCodigoEnTienda(string $codigoCrudo, int $idTienda, int $idFamilia = 0): ?array
     {
-        $codigo = trim($codigoCrudo);
+        require_once __DIR__ . '/../../includes/barcode_scan_helpers.php';
+        $codigo = joyeria_normalizar_codigo_escaneo($codigoCrudo);
         if ($codigo === '' || $idTienda <= 0) {
             return null;
         }

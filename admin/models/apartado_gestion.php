@@ -206,7 +206,8 @@ class ApartadoGestion extends Sistema
 
     public function resolverIdPiezaStockDisponible(PDO $db, string $codigo): int
     {
-        $codigo = trim($codigo);
+        require_once __DIR__ . '/../../includes/barcode_scan_helpers.php';
+        $codigo = joyeria_normalizar_codigo_escaneo($codigo);
         if ($codigo === '') {
             throw new InvalidArgumentException('Codigo de pieza vacio.');
         }

@@ -15,6 +15,19 @@
         }
     }
 
+    function normalizeScanCode(raw) {
+        var value = String(raw || '').trim();
+        if (value === '') {
+            return '';
+        }
+        value = value.replace(/[\x00-\x1F\x7F]+/g, '');
+        // Codigo auxiliar ARTPIE/CODPIE: pistola CODE128 suele emitir guion en lugar de diagonal
+        if (/^\d+-\d+$/.test(value)) {
+            return value.replace('-', '/');
+        }
+        return value;
+    }
+
     function insertAtCursor(el, text) {
         var val = String(el.value || '');
         var start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
@@ -96,6 +109,15 @@
             input.setAttribute('autocomplete', 'off');
         }
 
+        input.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') {
+                var normalized = normalizeScanCode(input.value);
+                if (normalized !== input.value) {
+                    input.value = normalized;
+                }
+            }
+        });
+
         var flexRow = input.parentElement;
         var bar = buildMobileKeysBar(input);
 
@@ -125,6 +147,7 @@
     global.JoyeriaBarcodeInput = {
         enhance: enhance,
         enhanceAll: enhanceAll,
+        normalizeScanCode: normalizeScanCode,
         insertSlash: function (inputOrId) {
             var el = typeof inputOrId === 'string' ? document.getElementById(inputOrId) : inputOrId;
             if (el) {

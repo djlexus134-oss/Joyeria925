@@ -530,6 +530,11 @@ window.AG_ALTA_CFG = <?php echo json_encode([
 
     function agregarPiezaPorCodigo(codigoRaw) {
         var codigo = (codigoRaw || '').trim();
+        if (window.JoyeriaBarcodeInput && typeof JoyeriaBarcodeInput.normalizeScanCode === 'function') {
+            codigo = JoyeriaBarcodeInput.normalizeScanCode(codigo);
+        } else if (/^\d+-\d+$/.test(codigo)) {
+            codigo = codigo.replace('-', '/');
+        }
         if (!codigo) {
             showLineaMsg('Escribe o escanea un código.', 'error');
             return;

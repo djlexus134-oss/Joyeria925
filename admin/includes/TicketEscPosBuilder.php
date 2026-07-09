@@ -51,10 +51,15 @@ class TicketEscPosBuilder
         }
 
         $leyenda = trim((string) ($ticket['leyenda_folio'] ?? 'Folio'));
-        $folio = (int) ($ticket['id_venta'] ?? 0);
+        $folioDisplay = trim((string) ($ticket['folio_display'] ?? ''));
         $out .= $this->text($leyenda) . "\n";
         $out .= $this->cmdBold(true);
-        $out .= $this->text('#' . $folio) . "\n";
+        if ($folioDisplay !== '') {
+            $out .= $this->text($folioDisplay) . "\n";
+        } else {
+            $folio = (int) ($ticket['id_venta'] ?? 0);
+            $out .= $this->text('#' . $folio) . "\n";
+        }
         $out .= $this->cmdBold(false);
 
         $fecha = trim((string) ($ticket['fecha_venta'] ?? ''));
@@ -70,12 +75,24 @@ class TicketEscPosBuilder
             $out .= $this->text('Cliente: ' . (string) $ticket['cliente_nombre']) . "\n";
         }
 
-        $out .= $this->text(str_repeat('-', $this->width)) . "\n";
-        $out .= $this->cmdAlignLeft();
-        $out .= $this->lineItemColumns('Descripcion', 'Importe') . "\n";
-        $out .= $this->text(str_repeat('-', $this->width)) . "\n";
+        foreach ($ticket['info_lineas'] ?? [] as $infoLinea) {
+            $lineaInfo = trim((string) $infoLinea);
+            if ($lineaInfo === '') {
+                continue;
+            }
+            foreach ($this->wrapText($lineaInfo) as $parteInfo) {
+                $out .= $this->text($parteInfo) . "\n";
+            }
+        }
 
-        foreach ($ticket['lineas'] ?? [] as $linea) {
+        $out .= $this->text(str_repeat('-', $this->width)) . "\n";
+        $lineasTicket = $ticket['lineas'] ?? [];
+        if (is_array($lineasTicket) && $lineasTicket !== []) {
+            $out .= $this->cmdAlignLeft();
+            $out .= $this->lineItemColumns('Descripcion', 'Importe') . "\n";
+            $out .= $this->text(str_repeat('-', $this->width)) . "\n";
+
+            foreach ($lineasTicket as $linea) {
             if (!is_array($linea)) {
                 continue;
             }
@@ -108,6 +125,7 @@ class TicketEscPosBuilder
                     ? sprintf('  Desc -%s%% (-$%s)', $this->formatMoney($descPctLinea), $this->formatMoney($descLinea))
                     : sprintf('  Desc -$%s', $this->formatMoney($descLinea));
                 $out .= $this->text($etiquetaDesc) . "\n";
+            }
             }
         }
 

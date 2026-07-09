@@ -8,11 +8,15 @@ require_once __DIR__ . '/../models/ventas.php';
 
 require_once __DIR__ . '/../models/apartado_gestion.php';
 
+require_once __DIR__ . '/../models/ordenes_taller.php';
+
 require_once __DIR__ . '/../includes/TicketService.php';
 
 require_once __DIR__ . '/../services/EtiquetaZplService.php';
 
 require_once __DIR__ . '/../includes/ImpresionEtiquetaHelper.php';
+
+require_once __DIR__ . '/../includes/ImpresionTicketHelper.php';
 
 
 
@@ -436,6 +440,70 @@ try {
 
 
 
+            if ($tipoTrabajo === 'orden_taller') {
+
+                $payloadOt = json_decode((string) ($trabajo['payload_json'] ?? ''), true);
+
+                if (!is_array($payloadOt)) {
+
+                    $cola->marcarError($idCola, 'Payload de orden de taller invalido.');
+
+                    impresion_json_fail('Payload de orden de taller invalido.', 500);
+
+                }
+
+                $idOrdenTaller = (int) ($payloadOt['id_orden_taller'] ?? 0);
+
+                if ($idOrdenTaller <= 0) {
+
+                    $cola->marcarError($idCola, 'id_orden_taller invalido en cola.');
+
+                    impresion_json_fail('id_orden_taller invalido en cola.', 500);
+
+                }
+
+
+
+                try {
+
+                    $ticket = $ticketService->construirDesdeOrdenTaller($idOrdenTaller);
+
+                    $payload = $ticketService->construirEscPosOrdenTallerBase64($idOrdenTaller);
+
+                } catch (Throwable $e) {
+
+                    $cola->marcarError($idCola, $e->getMessage());
+
+                    impresion_json_fail('No se pudo generar el ticket de orden de taller.', 500);
+
+                }
+
+
+
+                impresion_json_ok([
+
+                    'data' => [
+
+                        'id_cola_impresion' => $idCola,
+
+                        'id_orden_taller' => $idOrdenTaller,
+
+                        'tipo' => $tipoTrabajo,
+
+                        'destino' => 'ticket',
+
+                        'escpos_base64' => $payload,
+
+                        'ticket' => $ticket,
+
+                    ],
+
+                ]);
+
+            }
+
+
+
             $idVenta = (int) ($trabajo['id_venta_FK'] ?? 0);
 
             try {
@@ -601,6 +669,56 @@ try {
             $idCola = $cola->encolar($idVenta, 'reimpresion');
 
             impresion_json_ok(['message' => 'Ticket de venta encolado para reimpresion.', 'id_cola_impresion' => $idCola, 'tipo' => 'reimpresion'], 201);
+
+
+
+        case 'encolar_orden_taller':
+
+            if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+
+                impresion_json_fail('Metodo no permitido.', 405);
+
+            }
+
+            impresion_require_session();
+
+            $body = impresion_json_body();
+
+            $idOrdenTaller = isset($body['id_orden_taller']) ? (int) $body['id_orden_taller'] : 0;
+
+            if ($idOrdenTaller <= 0) {
+
+                impresion_json_fail('id_orden_taller requerido.', 422);
+
+            }
+
+            if (!$ticketService->impresionHabilitada()) {
+
+                impresion_json_fail('La impresion de tickets esta deshabilitada.', 422);
+
+            }
+
+            $ordenTk = (new OrdenesTaller())->leerUno($idOrdenTaller);
+
+            if (!$ordenTk) {
+
+                impresion_json_fail('Orden de taller no encontrada.', 404);
+
+            }
+
+            $idCola = $cola->encolarTicketOrdenTaller($idOrdenTaller, joyeria_id_tienda_cola_impresion(null));
+
+            impresion_json_ok([
+
+                'message' => 'Ticket de orden de taller encolado para impresion.',
+
+                'id_cola_impresion' => $idCola,
+
+                'tipo' => 'orden_taller',
+
+                'id_orden_taller' => $idOrdenTaller,
+
+            ], 201);
 
 
 

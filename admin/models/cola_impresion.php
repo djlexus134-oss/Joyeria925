@@ -20,6 +20,7 @@ class ColaImpresion extends Sistema
         'apartado_alta',
         'apartado_abono',
         'apartado_liquidacion',
+        'orden_taller',
     ];
 
     const TIPOS_ETIQUETA_STOCK = ['etiqueta_stock', 'etiqueta_lote'];
@@ -135,7 +136,57 @@ class ColaImpresion extends Sistema
         return (int) $this->getDb()->lastInsertId();
     }
 
+    /**
+     * Encola ticket termico de orden de taller. id_venta_FK queda NULL; datos en payload_json.
+     */
+    public function encolarTicketOrdenTaller(int $idOrdenTaller, ?int $idTienda = null): int
+    {
+        if ($idOrdenTaller <= 0) {
+            throw new InvalidArgumentException('id_orden_taller invalido.');
+        }
 
+        $payload = json_encode(
+            ['id_orden_taller' => $idOrdenTaller],
+            JSON_UNESCAPED_UNICODE
+        );
+
+        $columnas = 'id_venta_FK, id_tienda_FK, tipo, estado, payload_json, intentos, fecha_creacion';
+        $valores = 'NULL, :id_tienda, :tipo, :estado, :payload, 0, NOW()';
+        $sql = 'INSERT INTO ' . self::TABLE . ' (' . $columnas . ') VALUES (' . $valores . ')';
+        $stmt = $this->getDb()->prepare($sql);
+
+        if ($idTienda !== null && $idTienda > 0) {
+            $stmt->bindValue(':id_tienda', $idTienda, PDO::PARAM_INT);
+        } else {
+            $stmt->bindValue(':id_tienda', null, PDO::PARAM_NULL);
+        }
+        $stmt->bindValue(':tipo', 'orden_taller', PDO::PARAM_STR);
+        $stmt->bindValue(':estado', 'pendiente', PDO::PARAM_STR);
+        $stmt->bindValue(':payload', $payload, PDO::PARAM_STR);
+
+        try {
+            $stmt->execute();
+        } catch (PDOException $e) {
+            $msg = $e->getMessage();
+            if (stripos($msg, 'Data truncated') !== false || stripos($msg, 'orden_taller') !== false) {
+                throw new RuntimeException(
+                    'La cola no reconoce tickets de orden de taller. Ejecuta sql/2026_07_08_cola_impresion_orden_taller.sql',
+                    0,
+                    $e
+                );
+            }
+            if (stripos($msg, 'id_venta_FK') !== false && stripos($msg, 'cannot be null') !== false) {
+                throw new RuntimeException(
+                    'cola_impresion.id_venta_FK debe ser nullable. Ejecuta sql/2026_05_14_cola_impresion_etiquetas.sql',
+                    0,
+                    $e
+                );
+            }
+            throw new RuntimeException('No se pudo encolar ticket de orden de taller: ' . $msg, 0, $e);
+        }
+
+        return (int) $this->getDb()->lastInsertId();
+    }
 
     public function encolarEtiquetas(array $idsPiezaStock, string $tipo = 'etiqueta_lote', ?int $idTienda = null, ?int $idUsuario = null): int
     {

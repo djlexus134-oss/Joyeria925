@@ -65,3 +65,25 @@ function joyeria_encolar_ticket_apartado(int $idApartado, string $modo, ?int $id
         return null;
     }
 }
+
+/**
+ * Encola ticket termico de orden de taller para el print-agent de caja.
+ */
+function joyeria_encolar_ticket_orden_taller(int $idOrdenTaller, ?int $idTienda = null): ?int
+{
+    try {
+        $ticketService = new TicketService();
+        if (!$ticketService->impresionHabilitada()) {
+            return null;
+        }
+
+        $cola = new ColaImpresion();
+        $idTiendaCola = joyeria_id_tienda_cola_impresion($idTienda);
+
+        return $cola->encolarTicketOrdenTaller($idOrdenTaller, $idTiendaCola);
+    } catch (Throwable $e) {
+        error_log('joyeria_encolar_ticket_orden_taller: ' . $e->getMessage());
+
+        return null;
+    }
+}

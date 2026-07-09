@@ -24,11 +24,17 @@
     }
 
     function normalizeBarcode(raw) {
+        if (global.JoyeriaBarcodeInput && typeof global.JoyeriaBarcodeInput.normalizeScanCode === 'function') {
+            return global.JoyeriaBarcodeInput.normalizeScanCode(raw);
+        }
         var value = String(raw || '').trim();
         if (value === '') {
             return '';
         }
-        if (/^\d[\d\s-]*\d$/.test(value)) {
+        if (/^\d+-\d+$/.test(value)) {
+            return value.replace('-', '/');
+        }
+        if (/^\d[\d\s-]*\d$/.test(value) && value.indexOf('/') === -1) {
             return value.replace(/[\s-]/g, '');
         }
         return value;

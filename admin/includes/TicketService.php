@@ -3,6 +3,7 @@ require_once __DIR__ . '/../models/configuracion_general.php';
 require_once __DIR__ . '/../models/ventas.php';
 require_once __DIR__ . '/../models/devoluciones.php';
 require_once __DIR__ . '/../models/apartado_gestion.php';
+require_once __DIR__ . '/../models/ordenes_taller.php';
 require_once __DIR__ . '/TicketEscPosBuilder.php';
 
 class TicketService
@@ -386,6 +387,136 @@ class TicketService
     public function construirEscPosApartadoBase64(int $idApartado, string $modo): string
     {
         $ticket = $this->construirDesdeApartado($idApartado, $modo);
+        $builder = new TicketEscPosBuilder(
+            (int) ($ticket['ancho_columnas'] ?? 38),
+            (int) ($ticket['margen_izquierdo'] ?? 40)
+        );
+
+        return $builder->toBase64($ticket);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function construirDesdeOrdenTaller(int $idOrdenTaller): array
+    {
+        if ($idOrdenTaller <= 0) {
+            throw new InvalidArgumentException('Orden de taller no especificada.');
+        }
+
+        $ot = new OrdenesTaller();
+        $orden = $ot->leerUno($idOrdenTaller);
+        if (!$orden) {
+            throw new InvalidArgumentException('La orden de taller no existe.');
+        }
+
+        $pagosRaw = $ot->leerPagos($idOrdenTaller);
+        $cfg = $this->leerConfigTicket();
+        $ancho = (int) ($cfg['ticket_ancho_columnas'] ?? 38);
+        if ($ancho <= 0) {
+            $ancho = 38;
+        }
+        $margen = (int) ($cfg['ticket_margen_izquierdo'] ?? 40);
+        if ($margen < 0) {
+            $margen = 0;
+        }
+        $feedInicio = (int) ($cfg['ticket_feed_inicio_lineas'] ?? 1);
+        if ($feedInicio < 0) {
+            $feedInicio = 0;
+        }
+
+        $infoLineas = [];
+        $estado = $ot->etiquetaEstado((string) ($orden['estado'] ?? ''));
+        $infoLineas[] = 'Estado: ' . $estado;
+        $infoLineas[] = 'Tipo: ' . ucfirst((string) ($orden['tipo'] ?? 'reparacion'));
+        $piezaDesc = trim((string) ($orden['pieza_descripcion'] ?? ''));
+        if ($piezaDesc !== '') {
+            $infoLineas[] = 'Pieza: ' . $piezaDesc;
+        }
+        $codigo = trim((string) ($orden['codigo_auxiliar'] ?? ''));
+        if ($codigo === '') {
+            $codigo = trim((string) ($orden['codigo_barras'] ?? ''));
+        }
+        if ($codigo !== '') {
+            $infoLineas[] = 'Codigo: ' . $codigo;
+        }
+        $origen = (string) ($orden['origen'] ?? '') === 'inventario' ? 'Inventario' : 'Cliente';
+        $infoLineas[] = 'Origen: ' . $origen;
+        $tallerNombre = trim((string) ($orden['taller_nombre'] ?? ''));
+        if ($tallerNombre !== '') {
+            $telTaller = trim((string) ($orden['taller_telefono'] ?? ''));
+            $infoLineas[] = 'Taller: ' . $tallerNombre . ($telTaller !== '' ? ' - ' . $telTaller : '');
+        }
+        if (!empty($orden['fecha_compromiso'])) {
+            $infoLineas[] = 'Compromiso: ' . (string) $orden['fecha_compromiso'];
+        }
+        $trabajo = trim((string) ($orden['descripcion_problema'] ?? ''));
+        if ($trabajo !== '') {
+            $infoLineas[] = 'Trabajo: ' . $trabajo;
+        }
+        $obs = trim((string) ($orden['observaciones'] ?? ''));
+        if ($obs !== '') {
+            $infoLineas[] = 'Obs: ' . $obs;
+        }
+
+        $pagosDisplay = [];
+        $totalAbonado = 0.0;
+        foreach ($pagosRaw as $pago) {
+            if (!is_array($pago)) {
+                continue;
+            }
+            if (($pago['estado'] ?? '') !== 'registrado') {
+                continue;
+            }
+            $monto = (float) ($pago['monto'] ?? 0);
+            $totalAbonado += $monto;
+            $pagosDisplay[] = [
+                'forma_pago' => trim((string) ($pago['forma_pago'] ?? 'Pago')),
+                'monto' => $monto,
+            ];
+        }
+
+        $costoTotal = (float) ($orden['costo_total'] ?? 0);
+        $saldo = (float) ($orden['saldo_pendiente'] ?? 0);
+        $clienteNombre = trim((string) ($orden['cliente_nombre'] ?? ''));
+        $telCliente = trim((string) ($orden['cliente_telefono'] ?? ''));
+        if ($clienteNombre !== '' && $telCliente !== '') {
+            $clienteNombre .= ' - ' . $telCliente;
+        }
+
+        return [
+            'documento_titulo' => 'ORDEN DE TALLER',
+            'nombre_comercial' => (string) ($cfg['ticket_nombre_comercial'] ?? ''),
+            'leyenda_folio' => 'Folio',
+            'folio_display' => (string) ($orden['folio'] ?? ('OT-' . $idOrdenTaller)),
+            'horario' => (string) ($cfg['ticket_horario'] ?? ''),
+            'mensaje_pie' => (string) ($cfg['ticket_mensaje_pie'] ?? ''),
+            'mostrar_impuesto' => false,
+            'mostrar_empleado' => false,
+            'ancho_columnas' => $ancho,
+            'margen_izquierdo' => $margen,
+            'feed_inicio_lineas' => $feedInicio,
+            'id_venta' => $idOrdenTaller,
+            'fecha_venta' => (string) ($orden['fecha_registro'] ?? ''),
+            'cliente_nombre' => $clienteNombre !== '' ? $clienteNombre : 'N/A',
+            'info_lineas' => $infoLineas,
+            'subtotal_lista' => round($costoTotal, 2),
+            'subtotal' => round($costoTotal, 2),
+            'descuento_monto' => 0.0,
+            'descuento_desglose' => [],
+            'impuesto_porcentaje' => 0.0,
+            'impuesto_monto' => 0.0,
+            'total' => round($costoTotal, 2),
+            'lineas' => [],
+            'pagos' => $pagosDisplay,
+            'pagos_seccion_titulo' => 'Cobros:',
+            'saldo_pendiente' => round($saldo, 2),
+        ];
+    }
+
+    public function construirEscPosOrdenTallerBase64(int $idOrdenTaller): string
+    {
+        $ticket = $this->construirDesdeOrdenTaller($idOrdenTaller);
         $builder = new TicketEscPosBuilder(
             (int) ($ticket['ancho_columnas'] ?? 38),
             (int) ($ticket['margen_izquierdo'] ?? 40)

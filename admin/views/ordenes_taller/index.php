@@ -84,7 +84,7 @@ $estadoBadgeClass = [
                                     <a href="ordenes_taller.php?accion=actualizar&id=<?php echo (int) $orden['id_orden_taller']; ?>" class="btn-action-secondary" title="Ver / Editar">
                                         <i class="bi bi-eye"></i> Ver
                                     </a>
-                                    <a href="ordenes_taller.php?accion=imprimir&id=<?php echo (int) $orden['id_orden_taller']; ?>" class="btn-action-secondary" title="Imprimir" target="_blank">
+                                    <a href="ordenes_taller.php?accion=imprimir&id=<?php echo (int) $orden['id_orden_taller']; ?>&retorno=leer" class="btn-action-secondary" title="Imprimir ticket en caja">
                                         <i class="bi bi-printer"></i> Imprimir
                                     </a>
                                     <a href="ordenes_taller.php?accion=borrar&id=<?php echo (int) $orden['id_orden_taller']; ?>" class="btn-action-danger" title="Eliminar" onclick="return confirm('¿Dar de baja esta orden de taller?');">
