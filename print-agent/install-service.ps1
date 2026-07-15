@@ -1,27 +1,36 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-  Reinstala el servicio Windows JoyeriaPrintAgent (NSSM + Node).
+  Instala/reinstala el servicio Windows JoyeriaPrintAgent (NSSM + Node).
 
 .USAGE
-  Abre PowerShell como Administrador y ejecuta:
+  Abre PowerShell como Administrador, ubicate en la carpeta del agente y ejecuta:
 
-    Set-ExecutionPolicy -Scope Process Bypass -Force
-    & "D:\PrograWEB\src\Joyeria925\print-agent\install-service.ps1"
+    cd C:\Joyeria925\print-agent
+    powershell -ExecutionPolicy Bypass -File .\install-service.ps1
+
+  Parametros opcionales:
+    -PrinterName "EPSON TM-T20IV Receipt"
+    -NodeExe "C:\Program Files\nodejs\node.exe"
+    -NssmExe "C:\Tools\nssm\nssm.exe"
 #>
+
+param(
+    [string]$PrinterName = 'EPSON TM-T20IV Receipt',
+    [string]$NodeExe = 'C:\Program Files\nodejs\node.exe',
+    [string]$NssmExe = 'C:\Tools\nssm\nssm.exe',
+    [string]$ServiceName = 'JoyeriaPrintAgent'
+)
 
 $ErrorActionPreference = 'Stop'
 
-$NodeExe     = 'C:\Program Files\nodejs\node.exe'
-$NssmExe     = 'C:\Tools\nssm\nssm.exe'
-# Ajusta esta ruta en la PC de caja (ej. C:\Joyeria\print-agent)
-$AgentDir    = 'C:\Joyeria\print-agent'
-$IndexJs     = Join-Path $AgentDir 'index.js'
-$ConfigJson  = Join-Path $AgentDir 'config.json'
-$ConfigEx    = Join-Path $AgentDir 'config.example.json'
-$ServiceName = 'JoyeriaPrintAgent'
-$LogOut      = Join-Path $AgentDir 'agent-out.log'
-$LogErr      = Join-Path $AgentDir 'agent-err.log'
+# La carpeta del agente es la de este propio script (funciona la copies donde la copies).
+$AgentDir   = Split-Path -Parent $MyInvocation.MyCommand.Path
+$IndexJs    = Join-Path $AgentDir 'index.js'
+$ConfigJson = Join-Path $AgentDir 'config.json'
+$ConfigEx   = Join-Path $AgentDir 'config.example.json'
+$LogOut     = Join-Path $AgentDir 'agent-out.log'
+$LogErr     = Join-Path $AgentDir 'agent-err.log'
 
 function Write-Step([string]$msg) {
     Write-Host ""
@@ -29,115 +38,84 @@ function Write-Step([string]$msg) {
 }
 
 Write-Step "Comprobando rutas"
-if (-not (Test-Path -LiteralPath $NodeExe)) {
-    throw "No se encontro Node: $NodeExe"
-}
-if (-not (Test-Path -LiteralPath $NssmExe)) {
-    throw "No se encontro NSSM: $NssmExe"
-}
-if (-not (Test-Path -LiteralPath $IndexJs)) {
-    throw "No se encontro el agente: $IndexJs"
-}
+if (-not (Test-Path -LiteralPath $NodeExe)) { throw "No se encontro Node: $NodeExe" }
+if (-not (Test-Path -LiteralPath $NssmExe)) { throw "No se encontro NSSM: $NssmExe" }
+if (-not (Test-Path -LiteralPath $IndexJs)) { throw "No se encontro el agente: $IndexJs" }
+Write-Host ("Node:    {0}" -f (& $NodeExe -v))
+Write-Host ("NSSM:    {0}" -f $NssmExe)
+Write-Host ("Agente:  {0}" -f $AgentDir)
+Write-Host ("Impresora: {0}" -f $PrinterName)
 
-Write-Host ("Node:  {0}" -f (& $NodeExe -v))
-Write-Host ("NSSM:  {0}" -f $NssmExe)
-Write-Host ("Agent: {0}" -f $AgentDir)
-
-Write-Step "Deteniendo procesos Node del print-agent (si hay)"
-Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -and ($_.CommandLine -match 'print-agent') } |
-    ForEach-Object {
-        Write-Host ("Matando PID {0}" -f $_.ProcessId)
-        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-    }
+Write-Step "Deteniendo servicio y procesos Node previos"
+& $NssmExe stop $ServiceName 2>$null | Out-Null
+Get-Process node -ErrorAction SilentlyContinue |
+    Where-Object { try { $_.Path -and (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine -match 'print-agent' } catch { $false } } |
+    ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
 
 Write-Step "npm install"
 Push-Location $AgentDir
-try {
-    npm install
-} finally {
-    Pop-Location
-}
+try { npm install } finally { Pop-Location }
 
-Write-Step "Revisando config.json"
+Write-Step "Preparando config.json"
 if (-not (Test-Path -LiteralPath $ConfigJson)) {
-    if (-not (Test-Path -LiteralPath $ConfigEx)) {
-        throw "Falta config.example.json"
-    }
+    if (-not (Test-Path -LiteralPath $ConfigEx)) { throw "Falta config.example.json" }
     Copy-Item -LiteralPath $ConfigEx -Destination $ConfigJson
-    Write-Host "Se creo config.json desde el ejemplo." -ForegroundColor Yellow
-    Write-Host "Editalo ahora (token, serverUrl, printerName) y guarda." -ForegroundColor Yellow
+    Write-Host "Se creo config.json. Edita serverUrl y cajaToken, guarda y cierra." -ForegroundColor Yellow
     Start-Process notepad.exe -ArgumentList $ConfigJson -Wait
 }
 
-# PowerShell "UTF8" agrega BOM y puede corromper el JSON para Node. Reescribe sin BOM.
+# Fija printerName y reescribe SIN BOM (Node no parsea JSON con BOM/ï»¿).
 try {
-    $cfgObj = Get-Content -LiteralPath $ConfigJson -Encoding UTF8 -Raw | ConvertFrom-Json
-    $jsonClean = $cfgObj | ConvertTo-Json -Depth 10
+    $raw = [System.IO.File]::ReadAllText($ConfigJson)
+    $raw = $raw.TrimStart([char]0xFEFF)
+    $obj = $raw | ConvertFrom-Json
+    if (-not ($obj.PSObject.Properties.Name -contains 'printerName')) {
+        $obj | Add-Member -NotePropertyName printerName -NotePropertyValue $PrinterName -Force
+    } else {
+        $obj.printerName = $PrinterName
+    }
+    $json = $obj | ConvertTo-Json -Depth 10
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText($ConfigJson, $jsonClean + "`r`n", $utf8NoBom)
-    Write-Host "config.json reescrito en UTF-8 sin BOM."
+    [System.IO.File]::WriteAllText($ConfigJson, $json + "`r`n", $utf8NoBom)
+    Write-Host "config.json OK (UTF-8 sin BOM, printerName = $PrinterName)"
 } catch {
     throw ("config.json invalido: {0}" -f $_.Exception.Message)
 }
 
-Write-Step "Quitando servicio anterior (si existe)"
-& $NssmExe stop $ServiceName 2>$null | Out-Null
-Start-Sleep -Seconds 1
+Write-Step "Limpiando cola de impresion de Windows"
+Stop-Service Spooler -Force
+Remove-Item "$env:SystemRoot\System32\spool\PRINTERS\*" -Force -ErrorAction SilentlyContinue
+Start-Service Spooler
+Start-Sleep -Seconds 2
+
+Write-Step "Reinstalando servicio $ServiceName"
 & $NssmExe remove $ServiceName confirm 2>$null | Out-Null
 Start-Sleep -Seconds 1
-
-Write-Step "Instalando servicio $ServiceName"
 & $NssmExe install $ServiceName $NodeExe $IndexJs
-if ($LASTEXITCODE -ne 0) {
-    throw "nssm install fallo con codigo $LASTEXITCODE"
-}
-
 & $NssmExe set $ServiceName AppDirectory $AgentDir | Out-Null
 & $NssmExe set $ServiceName AppStdout $LogOut | Out-Null
 & $NssmExe set $ServiceName AppStderr $LogErr | Out-Null
 & $NssmExe set $ServiceName AppRotateFiles 1 | Out-Null
 & $NssmExe set $ServiceName Start SERVICE_AUTO_START | Out-Null
+& $NssmExe set $ServiceName AppExit Default Restart | Out-Null
 & $NssmExe set $ServiceName AppRestartDelay 5000 | Out-Null
-
-Write-Step "Limpiando cola de impresion Windows (tickets atascados)"
-try {
-    $cfg = Get-Content -LiteralPath $ConfigJson -Raw | ConvertFrom-Json
-    $printerName = [string]$cfg.printerName
-    if ([string]::IsNullOrWhiteSpace($printerName)) {
-        $printerName = 'EPSON TM-T20 Receipt'
-    }
-    Write-Host ("Impresora en config: {0}" -f $printerName)
-    Get-PrintJob -PrinterName $printerName -ErrorAction SilentlyContinue |
-        ForEach-Object { Remove-PrintJob -InputObject $_ -ErrorAction SilentlyContinue }
-} catch {
-    Write-Host ("No se pudo limpiar cola: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
-}
-
-Write-Step "Reiniciando Spooler"
-Restart-Service Spooler -Force
-Start-Sleep -Seconds 2
 
 Write-Step "Iniciando servicio"
 & $NssmExe start $ServiceName
-Start-Sleep -Seconds 2
-
+Start-Sleep -Seconds 3
 $status = & $NssmExe status $ServiceName
-Write-Host ("Estado: {0}" -f $status) -ForegroundColor $(if ($status -match 'RUNNING') { 'Green' } else { 'Yellow' })
+Write-Host ("Estado: {0}" -f $status) -ForegroundColor $(if ($status -match 'RUNNING') { 'Green' } else { 'Red' })
 
-Write-Step "Ultimas lineas del log"
-Start-Sleep -Seconds 1
-if (Test-Path -LiteralPath $LogOut) {
-    Get-Content -LiteralPath $LogOut -Tail 30
-} else {
-    Write-Host "(aun no hay agent-out.log)"
-}
+Write-Step "Log del agente"
+if (Test-Path -LiteralPath $LogOut) { Get-Content -LiteralPath $LogOut -Tail 25 } else { Write-Host "(sin agent-out.log todavia)" }
 if (Test-Path -LiteralPath $LogErr) {
-    Write-Host "--- stderr ---" -ForegroundColor Yellow
-    Get-Content -LiteralPath $LogErr -Tail 20
+    $errTail = Get-Content -LiteralPath $LogErr -Tail 20 -ErrorAction SilentlyContinue
+    if ($errTail) { Write-Host "--- stderr ---" -ForegroundColor Yellow; $errTail }
 }
 
 Write-Host ""
-Write-Host "Listo. Si el estado no es SERVICE_RUNNING, revisa config.json (token/serverUrl/printerName)." -ForegroundColor Green
-Write-Host "Opcional: desactiva soporte bidireccional con:" -ForegroundColor DarkGray
-Write-Host '  rundll32 printui.dll,PrintUIEntry /p /n "EPSON TM-T20 Receipt"' -ForegroundColor DarkGray
+if ($status -match 'RUNNING') {
+    Write-Host "Listo: el agente quedo como servicio y arranca solo con Windows." -ForegroundColor Green
+} else {
+    Write-Host "El servicio NO quedo en RUNNING. Revisa agent-err.log y config.json (serverUrl/cajaToken)." -ForegroundColor Red
+}
