@@ -7,6 +7,7 @@ const { resolveServerUrl, pickLanIPv4 } = require('./resolve-server-url');
 
 const configPath = path.join(__dirname, 'config.json');
 const printScriptPath = path.join(__dirname, 'print-raw.ps1');
+const lockPath = path.join(__dirname, '.print-agent.lock');
 
 if (!fs.existsSync(configPath)) {
   console.error('Falta config.json. Copia config.example.json y ajusta valores.');
@@ -17,6 +18,55 @@ if (!fs.existsSync(printScriptPath)) {
   console.error('Falta print-raw.ps1 en la carpeta del agente.');
   process.exit(1);
 }
+
+function acquireSingletonLock() {
+  try {
+    if (fs.existsSync(lockPath)) {
+      const prev = parseInt(String(fs.readFileSync(lockPath, 'utf8')).trim(), 10) || 0;
+      if (prev > 0) {
+        try {
+          // Señal 0: solo comprueba si el PID sigue vivo (Windows/Node).
+          process.kill(prev, 0);
+          console.error(
+            '[print-agent] Ya hay otra instancia corriendo (PID ' +
+              prev +
+              '). Cierra npm/NSSM duplicado: dos agentes pelean el USB y la Epson imprime "?".'
+          );
+          process.exit(1);
+        } catch (e) {
+          // PID muerto: lock viejo, se reemplaza.
+        }
+      }
+    }
+    fs.writeFileSync(lockPath, String(process.pid), 'utf8');
+  } catch (e) {
+    console.warn('[print-agent] No se pudo crear lock de instancia unica:', e.message || e);
+  }
+}
+
+function releaseSingletonLock() {
+  try {
+    if (fs.existsSync(lockPath)) {
+      const prev = parseInt(String(fs.readFileSync(lockPath, 'utf8')).trim(), 10) || 0;
+      if (prev === process.pid) {
+        fs.unlinkSync(lockPath);
+      }
+    }
+  } catch (e) {
+    // ignorar
+  }
+}
+
+acquireSingletonLock();
+process.on('exit', releaseSingletonLock);
+process.on('SIGINT', () => {
+  releaseSingletonLock();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  releaseSingletonLock();
+  process.exit(0);
+});
 
 let configRaw = fs.readFileSync(configPath, 'utf8');
 if (configRaw.charCodeAt(0) === 0xfeff) {
@@ -155,7 +205,7 @@ async function processOne() {
     await confirmJob(idCola, true, '');
     console.log('[print-agent] Ticket impreso venta #' + (job.id_venta || '?') + ' (' + buffer.length + ' bytes)');
     // Da tiempo a la Epson a vaciar buffer/autocutter antes del siguiente ticket.
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 800));
   } catch (err) {
     const msg = err && err.message ? err.message : String(err);
     console.error('[print-agent] Error:', msg);

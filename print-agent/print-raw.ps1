@@ -16,6 +16,30 @@ if ($bytes.Length -eq 0) {
     exit 1
 }
 
+# Trabajos atascados en el spooler (error/GDI/RAW a medias) reintentan y corrompen
+# el USB: la Epson imprime "?" (error de recepcion) y enciende el LED "!".
+try {
+    $printer = Get-Printer -Name $PrinterName -ErrorAction Stop
+    if ($printer.PrinterStatus -match 'Offline|Error|PaperJam|DoorOpen|NotAvailable') {
+        Write-Error ("Impresora en estado no listo: {0}" -f $printer.PrinterStatus)
+        exit 1
+    }
+    $jobs = @(Get-PrintJob -PrinterName $PrinterName -ErrorAction SilentlyContinue)
+    foreach ($job in $jobs) {
+        try {
+            Remove-PrintJob -InputObject $job -ErrorAction SilentlyContinue
+        } catch {
+            # ignorar
+        }
+    }
+    if ($jobs.Count -gt 0) {
+        Write-Output ("[print-raw] Se limpiaron {0} trabajo(s) previos en la cola de Windows." -f $jobs.Count)
+    }
+} catch {
+    Write-Error ("No se encontro la impresora '{0}': {1}" -f $PrinterName, $_.Exception.Message)
+    exit 1
+}
+
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -51,11 +75,15 @@ public class RawPrinterHelper
     [DllImport("winspool.drv", SetLastError = true)]
     public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, int dwCount, out int dwWritten);
 
+    public static string LastErrorDetail = "";
+
     public static bool SendBytesToPrinter(string printerName, byte[] bytes)
     {
+        LastErrorDetail = "";
         IntPtr hPrinter;
         if (!OpenPrinter(printerName, out hPrinter, IntPtr.Zero))
         {
+            LastErrorDetail = "OpenPrinter Win32=" + Marshal.GetLastWin32Error();
             return false;
         }
 
@@ -65,20 +93,20 @@ public class RawPrinterHelper
 
         if (!StartDocPrinter(hPrinter, 1, di))
         {
+            LastErrorDetail = "StartDocPrinter Win32=" + Marshal.GetLastWin32Error();
             ClosePrinter(hPrinter);
             return false;
         }
 
         if (!StartPagePrinter(hPrinter))
         {
+            LastErrorDetail = "StartPagePrinter Win32=" + Marshal.GetLastWin32Error();
             EndDocPrinter(hPrinter);
             ClosePrinter(hPrinter);
             return false;
         }
 
         // WritePrinter puede escribir parcial (buffer USB/spooler lleno).
-        // Si se descartan bytes restantes, el ESC/POS queda truncado y la Epson
-        // puede quedar en error de autocutter / comandos invalidos.
         IntPtr pUnmanagedBytes = Marshal.AllocCoTaskMem(bytes.Length);
         try
         {
@@ -92,6 +120,7 @@ public class RawPrinterHelper
                 bool ok = WritePrinter(hPrinter, chunkPtr, remaining, out dwWritten);
                 if (!ok || dwWritten <= 0)
                 {
+                    LastErrorDetail = "WritePrinter parcial offset=" + offset + " Win32=" + Marshal.GetLastWin32Error();
                     EndPagePrinter(hPrinter);
                     EndDocPrinter(hPrinter);
                     ClosePrinter(hPrinter);
@@ -115,7 +144,8 @@ public class RawPrinterHelper
 
 $ok = [RawPrinterHelper]::SendBytesToPrinter($PrinterName, $bytes)
 if (-not $ok) {
-    Write-Error "No se pudo enviar datos RAW a la impresora: $PrinterName"
+    $detail = [RawPrinterHelper]::LastErrorDetail
+    Write-Error ("No se pudo enviar datos RAW a la impresora: {0}. {1}" -f $PrinterName, $detail)
     exit 1
 }
 

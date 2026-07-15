@@ -67,4 +67,11 @@ nssm start JoyeriaPrintAgent
 - **Impresora no encontrada**: revisa nombre exacto con `Get-Printer` en PowerShell
 - **Modulo printer falla**: ya no se usa; reinstala con `npm install` (solo axios)
 - **Ticket en cola pero no imprime**: revisa firewall y que `serverUrl` sea alcanzable desde la PC
-- **LED de error en Epson TM-T20IV (intermitente)**: casi siempre es autocutter. Abre tapa de cuchilla, gira perilla hasta marca triangulo, limpia papel. En admin usa ancho ~38 y margen ~40. Reinicia el agente para tomar `print-raw.ps1` actualizado (envia RAW completo; evita ESC/POS truncado).
+- **Imprime "?" cada pocos segundos / LED "!" (Error)**:
+  1. En la Epson, "?" = **error de recepcion USB** (datos corruptos o dos programas peleando el puerto). El "!" es el LED de error/offline.
+  2. Cierra **Epson Status Monitor / Monitoring Tool / TM Utility** si estan abiertos.
+  3. Propiedades de la impresora → pestaña **Puertos** → **desmarca "Habilitar soporte bidireccional"**.
+  4. Abre la cola de Windows (`control printers`) → cancela todos los documentos pendientes.
+  5. Asegura **una sola** instancia del agente (NSSM **o** `npm start`, no ambos). El agente ahora bloquea duplicados.
+  6. USB directo al PC (sin hub barato); reinicia impresora y agente.
+  7. Reinicia el agente para tomar el `print-raw.ps1` que limpia la cola before de enviar RAW.
