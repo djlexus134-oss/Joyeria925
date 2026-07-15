@@ -2,19 +2,37 @@
 
 class TicketEscPosBuilder
 {
+    /** Ancho printable tipico TM-T20 / TM-T20IV (papel 80 mm), en puntos a 203 dpi. */
+    private const PRINTABLE_DOTS_80MM = 576;
+
+    /** Ancho de Font A (ESC M 0): 12 puntos por caracter. */
+    private const FONT_A_DOTS_PER_CHAR = 12;
+
     private int $width;
     private int $marginDots;
+    private int $printAreaDots;
 
     public function __construct(int $width = 38, int $marginDots = 40)
     {
-        $this->width = max(28, min(48, $width));
         $this->marginDots = max(0, min(255, $marginDots));
+        // GS L + columnas no debe superar el area imprimible; si no, la Epson puede
+        // envolver mal o forzar al autocutter (LED de error intermitente).
+        $this->printAreaDots = max(
+            self::FONT_A_DOTS_PER_CHAR,
+            self::PRINTABLE_DOTS_80MM - $this->marginDots
+        );
+        $maxChars = (int) floor($this->printAreaDots / self::FONT_A_DOTS_PER_CHAR);
+        $this->width = max(24, min(48, $width, $maxChars));
     }
 
     public function build(array $ticket): string
     {
         $out = $this->cmdInit();
+        // Font A + code page PC437: solo enviamos ASCII; evita modos de letra raros del driver.
+        $out .= $this->cmdSelectFontA();
+        $out .= $this->cmdSelectCodePage(0);
         $out .= $this->cmdSetLeftMargin($this->marginDots);
+        $out .= $this->cmdSetPrintAreaWidth($this->printAreaDots);
 
         $feedInicio = (int) ($ticket['feed_inicio_lineas'] ?? 1);
         if ($feedInicio > 0) {
@@ -222,8 +240,9 @@ class TicketEscPosBuilder
             }
         }
 
-        $out .= "\n\n\n";
-        $out .= $this->cmdCutPartial();
+        // GS V 66 n: alimenta hasta la posicion de corte y hace corte parcial.
+        // GS V 1 sin feed suficiente (~27 mm hasta la cuchilla) provoca atascos intermitentes.
+        $out .= $this->cmdFeedAndCutPartial(0);
 
         return $out;
     }
@@ -246,6 +265,20 @@ class TicketEscPosBuilder
         return "\x1B\x40";
     }
 
+    /** ESC M 0 — Font A (12x24), el mas estable en TM-T20IV. */
+    private function cmdSelectFontA(): string
+    {
+        return "\x1B\x4D\x00";
+    }
+
+    /** ESC t n — tabla de caracteres (0 = PC437). Compatible con el ASCII que generamos. */
+    private function cmdSelectCodePage(int $n): string
+    {
+        $n = max(0, min(255, $n));
+
+        return "\x1B\x74" . chr($n);
+    }
+
     private function cmdAlignLeft(): string
     {
         return "\x1B\x61\x00";
@@ -261,9 +294,15 @@ class TicketEscPosBuilder
         return $on ? "\x1B\x45\x01" : "\x1B\x45\x00";
     }
 
-    private function cmdCutPartial(): string
+    /**
+     * GS V 66 n — feed a posicion de corte + n unidades verticales, corte parcial.
+     * Preferible a GS V 1 (corta en la posicion actual sin garantizar el feed).
+     */
+    private function cmdFeedAndCutPartial(int $extraUnits = 0): string
     {
-        return "\x1D\x56\x01";
+        $n = max(0, min(255, $extraUnits));
+
+        return "\x1D\x56\x42" . chr($n);
     }
 
     /** Margen izquierdo en puntos (GS L). TM-T20 ~203 dpi: 40 pts ~ 5 mm */
@@ -272,6 +311,14 @@ class TicketEscPosBuilder
         $dots = max(0, min(65535, $dots));
 
         return "\x1D\x4C" . chr($dots & 0xFF) . chr(($dots >> 8) & 0xFF);
+    }
+
+    /** Ancho del area de impresion (GS W). Debe respetar: margen + area <= 576. */
+    private function cmdSetPrintAreaWidth(int $dots): string
+    {
+        $dots = max(0, min(65535, $dots));
+
+        return "\x1D\x57" . chr($dots & 0xFF) . chr(($dots >> 8) & 0xFF);
     }
 
     private function text(string $value): string
@@ -289,6 +336,8 @@ class TicketEscPosBuilder
             'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
             'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U',
             'ñ' => 'n', 'Ñ' => 'N', 'ü' => 'u', 'Ü' => 'U',
+            '¿' => '?', '¡' => '!', '°' => 'o', 'º' => 'o', 'ª' => 'a',
+            '–' => '-', '—' => '-', '“' => '"', '”' => '"', '‘' => "'", '’' => "'",
         ];
         $value = strtr($value, $map);
 
@@ -306,10 +355,11 @@ class TicketEscPosBuilder
     {
         $left = $this->text($left);
         $right = $this->text($right);
-        $space = $this->width - mb_strlen($left) - mb_strlen($right);
+        // Ya es ASCII: strlen/substr evitan depender de mbstring/charset interno.
+        $space = $this->width - strlen($left) - strlen($right);
         if ($space < 1) {
-            $maxLeft = max(1, $this->width - mb_strlen($right) - 1);
-            $left = mb_substr($left, 0, $maxLeft);
+            $maxLeft = max(1, $this->width - strlen($right) - 1);
+            $left = substr($left, 0, $maxLeft);
             $space = 1;
         }
 
@@ -318,7 +368,7 @@ class TicketEscPosBuilder
 
     private function wrapText(string $text): array
     {
-        $text = trim($text);
+        $text = trim($this->text($text));
         if ($text === '') {
             return [];
         }
@@ -327,14 +377,14 @@ class TicketEscPosBuilder
         $current = '';
         foreach ($words as $word) {
             $candidate = $current === '' ? $word : $current . ' ' . $word;
-            if (mb_strlen($candidate) <= $this->width) {
+            if (strlen($candidate) <= $this->width) {
                 $current = $candidate;
                 continue;
             }
             if ($current !== '') {
                 $lines[] = $current;
             }
-            $current = mb_strlen($word) > $this->width ? mb_substr($word, 0, $this->width) : $word;
+            $current = strlen($word) > $this->width ? substr($word, 0, $this->width) : $word;
         }
         if ($current !== '') {
             $lines[] = $current;

@@ -45,6 +45,17 @@ function joyeria_like_pattern(?string $q): ?string
 }
 
 /**
+ * Expresión SQL de nombre completo (nombre + apellidos; omite NULL).
+ * Solo para alias de tabla/usuario ya fijo en el código (no input de usuario).
+ */
+function joyeria_sql_nombre_completo(string $alias = 'u'): string
+{
+    $a = preg_replace('/[^a-zA-Z0-9_]/', '', $alias) ?: 'u';
+
+    return "TRIM(CONCAT_WS(' ', {$a}.nombre, {$a}.primer_apellido, {$a}.segundo_apellido))";
+}
+
+/**
  * Filtra filas ya cargadas (p. ej. resultados de CALL) por coincidencia en columnas.
  *
  * @param array<int, array<string, mixed>> $rows

@@ -15,7 +15,7 @@
     <?php
     $listSearchAction = 'usuario.php';
     $listSearchHidden = ['accion' => 'leer'];
-    $listSearchPlaceholder = 'Buscar por nombre, correo o direccion...';
+    $listSearchPlaceholder = 'Buscar por nombre completo, correo o direccion...';
     require __DIR__ . '/../partials/list_search_bar.php';
     ?>
     </div>

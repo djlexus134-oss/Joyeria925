@@ -67,3 +67,4 @@ nssm start JoyeriaPrintAgent
 - **Impresora no encontrada**: revisa nombre exacto con `Get-Printer` en PowerShell
 - **Modulo printer falla**: ya no se usa; reinstala con `npm install` (solo axios)
 - **Ticket en cola pero no imprime**: revisa firewall y que `serverUrl` sea alcanzable desde la PC
+- **LED de error en Epson TM-T20IV (intermitente)**: casi siempre es autocutter. Abre tapa de cuchilla, gira perilla hasta marca triangulo, limpia papel. En admin usa ancho ~38 y margen ~40. Reinicia el agente para tomar `print-raw.ps1` actualizado (envia RAW completo; evita ESC/POS truncado).

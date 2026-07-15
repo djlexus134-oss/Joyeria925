@@ -76,16 +76,39 @@ public class RawPrinterHelper
             return false;
         }
 
+        // WritePrinter puede escribir parcial (buffer USB/spooler lleno).
+        // Si se descartan bytes restantes, el ESC/POS queda truncado y la Epson
+        // puede quedar en error de autocutter / comandos invalidos.
         IntPtr pUnmanagedBytes = Marshal.AllocCoTaskMem(bytes.Length);
-        Marshal.Copy(bytes, 0, pUnmanagedBytes, bytes.Length);
-        int dwWritten = 0;
-        bool ok = WritePrinter(hPrinter, pUnmanagedBytes, bytes.Length, out dwWritten);
-        Marshal.FreeCoTaskMem(pUnmanagedBytes);
+        try
+        {
+            Marshal.Copy(bytes, 0, pUnmanagedBytes, bytes.Length);
+            int offset = 0;
+            while (offset < bytes.Length)
+            {
+                IntPtr chunkPtr = IntPtr.Add(pUnmanagedBytes, offset);
+                int remaining = bytes.Length - offset;
+                int dwWritten = 0;
+                bool ok = WritePrinter(hPrinter, chunkPtr, remaining, out dwWritten);
+                if (!ok || dwWritten <= 0)
+                {
+                    EndPagePrinter(hPrinter);
+                    EndDocPrinter(hPrinter);
+                    ClosePrinter(hPrinter);
+                    return false;
+                }
+                offset += dwWritten;
+            }
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(pUnmanagedBytes);
+        }
 
         EndPagePrinter(hPrinter);
         EndDocPrinter(hPrinter);
         ClosePrinter(hPrinter);
-        return ok;
+        return true;
     }
 }
 "@

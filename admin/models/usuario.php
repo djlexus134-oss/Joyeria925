@@ -27,10 +27,11 @@ class Usuario extends Sistema
                 LEFT JOIN codigos_postales cp ON cp.id_codigo_postal = co.id_codigo_postal_FK
                 WHERE u.activo = 1";
         if ($pat !== null) {
+            $nombreCompleto = joyeria_sql_nombre_completo('u');
             $sql .= " AND (
-                u.nombre LIKE :busq OR u.primer_apellido LIKE :busq2 OR u.segundo_apellido LIKE :busq3
-                OR u.correo LIKE :busq4 OR u.telefono LIKE :busq5 OR ca.nom_calle LIKE :busq6
-                OR co.nom_colonia LIKE :busq7 OR CAST(cp.codigo_postal AS CHAR) LIKE :busq8
+                {$nombreCompleto} LIKE :busq
+                OR u.correo LIKE :busq2 OR u.telefono LIKE :busq3 OR ca.nom_calle LIKE :busq4
+                OR co.nom_colonia LIKE :busq5 OR CAST(cp.codigo_postal AS CHAR) LIKE :busq6
             )";
         }
         $sql .= " ORDER BY u.primer_apellido ASC, u.segundo_apellido ASC, u.nombre ASC";
@@ -43,8 +44,6 @@ class Usuario extends Sistema
             $stmt->bindValue(':busq4', $pat, PDO::PARAM_STR);
             $stmt->bindValue(':busq5', $pat, PDO::PARAM_STR);
             $stmt->bindValue(':busq6', $pat, PDO::PARAM_STR);
-            $stmt->bindValue(':busq7', $pat, PDO::PARAM_STR);
-            $stmt->bindValue(':busq8', $pat, PDO::PARAM_STR);
         }
         $stmt->execute();
 

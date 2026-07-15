@@ -84,8 +84,8 @@ class Ventas extends Sistema
 
         if ($pat !== null) {
             $sql .= " AND (
-                CONCAT(uc.nombre, ' ', uc.primer_apellido, COALESCE(CONCAT(' ', uc.segundo_apellido), '')) LIKE :busq
-                OR CONCAT(ue.nombre, ' ', ue.primer_apellido, COALESCE(CONCAT(' ', ue.segundo_apellido), '')) LIKE :busq2
+                " . joyeria_sql_nombre_completo('uc') . " LIKE :busq
+                OR " . joyeria_sql_nombre_completo('ue') . " LIKE :busq2
                 OR v.estado LIKE :busq3 OR i.tipo_impuesto LIKE :busq4 OR CAST(v.total AS CHAR) LIKE :busq5
                 OR CAST(v.id_venta AS CHAR) LIKE :busq6 OR uc.correo LIKE :busq7
                 OR (v.id_apartado_FK IS NOT NULL AND CAST(v.id_apartado_FK AS CHAR) LIKE :busq8)

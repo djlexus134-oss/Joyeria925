@@ -36,11 +36,19 @@ function joyeria_cliente_option_label(array $cli): string
  */
 function joyeria_cliente_option_search_haystack(array $cli): string
 {
+    $nombre = trim((string) ($cli['nombre'] ?? ''));
+    $primer = trim((string) ($cli['primer_apellido'] ?? ''));
+    $segundo = trim((string) ($cli['segundo_apellido'] ?? ''));
+    $nombreCompleto = trim((string) ($cli['nombre_completo'] ?? ''));
+    if ($nombreCompleto === '') {
+        $nombreCompleto = trim(implode(' ', array_filter([$nombre, $primer, $segundo], static fn ($p) => $p !== '')));
+    }
+
     $parts = [
-        trim((string) ($cli['nombre'] ?? '')),
-        trim((string) ($cli['primer_apellido'] ?? '')),
-        trim((string) ($cli['segundo_apellido'] ?? '')),
-        trim((string) ($cli['nombre_completo'] ?? '')),
+        $nombre,
+        $primer,
+        $segundo,
+        $nombreCompleto,
     ];
 
     $telefono = trim((string) ($cli['telefono'] ?? ''));

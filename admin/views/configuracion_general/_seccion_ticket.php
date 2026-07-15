@@ -35,13 +35,15 @@
     <div class="form-row">
         <div class="form-group">
             <label for="ticket_ancho_columnas">Ancho (caracteres)</label>
-            <input class="form-input" type="number" min="28" max="48" name="ticket_ancho_columnas" id="ticket_ancho_columnas"
+            <input class="form-input" type="number" min="24" max="48" name="ticket_ancho_columnas" id="ticket_ancho_columnas"
                    value="<?php echo (int) $valores['ticket_ancho_columnas']; ?>">
+            <small class="form-hint">Recomendado 38. Con margen alto el sistema reduce columnas para no pasar de 576 pts (TM-T20).</small>
         </div>
         <div class="form-group">
             <label for="ticket_margen_izquierdo">Margen izquierdo (puntos ESC/POS)</label>
-            <input class="form-input" type="number" min="0" max="255" name="ticket_margen_izquierdo" id="ticket_margen_izquierdo"
+            <input class="form-input" type="number" min="0" max="120" name="ticket_margen_izquierdo" id="ticket_margen_izquierdo"
                    value="<?php echo (int) $valores['ticket_margen_izquierdo']; ?>">
+            <small class="form-hint">Recomendado 40 (~5 mm). Valores altos + muchas columnas pueden provocar error de corte.</small>
         </div>
         <div class="form-group">
             <label for="ticket_feed_inicio_lineas">Avance al inicio (líneas)</label>

@@ -18,8 +18,9 @@ function configuracion_plantilla_defaults(): array
         'ticket_leyenda_folio' => 'Folio',
         'ticket_horario' => 'Horario: 1:30 PM - 7:00 PM',
         'ticket_mensaje_pie' => 'Gracias por su preferencia',
-        'ticket_ancho_columnas' => 42,
-        'ticket_margen_izquierdo' => 60,
+        // 38 cols + margen 40 pts cabe en 576 pts (Font A) de la TM-T20IV sin desbordar.
+        'ticket_ancho_columnas' => 38,
+        'ticket_margen_izquierdo' => 40,
         'ticket_feed_inicio_lineas' => 1,
         'ticket_mostrar_impuesto' => true,
         'ticket_mostrar_empleado' => true,

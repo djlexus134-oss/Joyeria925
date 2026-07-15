@@ -29,6 +29,7 @@ class OrdenesTaller extends Sistema
                 WHERE ot.activo = 1";
 
         if ($pat !== null) {
+            $nombreCliente = joyeria_sql_nombre_completo('u');
             $sql .= " AND (
                 ot.folio LIKE :busq OR ot.pieza_descripcion LIKE :busq2
                 OR ot.descripcion_problema LIKE :busq3 OR ot.estado LIKE :busq4
@@ -36,7 +37,7 @@ class OrdenesTaller extends Sistema
                 OR IFNULL(ps.codigo_auxiliar, '') LIKE :busq6
                 OR IFNULL(ps.codigo_barras, '') LIKE :busq7
                 OR IFNULL(p.desc_pieza, '') LIKE :busq8
-                OR IFNULL(CONCAT(u.nombre, ' ', u.primer_apellido), '') LIKE :busq9
+                OR IFNULL({$nombreCliente}, '') LIKE :busq9
                 OR CAST(ot.id_orden_taller AS CHAR) LIKE :busq10
             )";
         }

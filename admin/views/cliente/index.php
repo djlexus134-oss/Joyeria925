@@ -18,7 +18,7 @@ require_once __DIR__ . '/../../includes/cliente_correo.php';
     <?php
     $listSearchAction = 'cliente.php';
     $listSearchHidden = ['accion' => 'leer'];
-    $listSearchPlaceholder = 'Buscar por nombre, apellido, correo, teléfono o dirección...';
+    $listSearchPlaceholder = 'Buscar por nombre completo, correo, teléfono o dirección...';
     require __DIR__ . '/../partials/list_search_bar.php';
     ?>
     </div>

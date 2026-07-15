@@ -142,9 +142,20 @@ async function processOne() {
 
   try {
     const buffer = Buffer.from(b64, 'base64');
+    if (buffer.length === 0) {
+      await confirmJob(idCola, false, 'Payload ESC/POS decodificado vacio');
+      return;
+    }
+    // Tope practico: un ticket muy grande (>8 KB) suele indicar basura o datos corruptos.
+    if (buffer.length > 8192) {
+      await confirmJob(idCola, false, 'Payload ESC/POS demasiado grande (' + buffer.length + ' bytes)');
+      return;
+    }
     await printRaw(buffer);
     await confirmJob(idCola, true, '');
-    console.log('[print-agent] Ticket impreso venta #' + (job.id_venta || '?'));
+    console.log('[print-agent] Ticket impreso venta #' + (job.id_venta || '?') + ' (' + buffer.length + ' bytes)');
+    // Da tiempo a la Epson a vaciar buffer/autocutter antes del siguiente ticket.
+    await new Promise((r) => setTimeout(r, 400));
   } catch (err) {
     const msg = err && err.message ? err.message : String(err);
     console.error('[print-agent] Error:', msg);

@@ -43,13 +43,15 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="ticket_ancho_columnas">Ancho (caracteres, 80mm ~ 38)</label>
-                <input class="form-input" type="number" min="28" max="48" name="ticket_ancho_columnas" id="ticket_ancho_columnas"
+                <input class="form-input" type="number" min="24" max="48" name="ticket_ancho_columnas" id="ticket_ancho_columnas"
                        value="<?php echo (int) ($valores['ticket_ancho_columnas'] ?? 38); ?>">
+                <small class="form-hint">Si el margen es alto, el builder limita columnas para no desbordar 576 pts.</small>
             </div>
             <div class="form-group">
                 <label for="ticket_margen_izquierdo">Margen izquierdo (puntos, ~40 recomendado)</label>
-                <input class="form-input" type="number" min="0" max="255" name="ticket_margen_izquierdo" id="ticket_margen_izquierdo"
+                <input class="form-input" type="number" min="0" max="120" name="ticket_margen_izquierdo" id="ticket_margen_izquierdo"
                        value="<?php echo (int) ($valores['ticket_margen_izquierdo'] ?? 40); ?>">
+                <small class="form-hint">Evita valores &gt; 80 con ancho &gt; 40 (riesgo de error de autocutter en TM-T20IV).</small>
             </div>
             <div class="form-group">
                 <label for="impresion_nombre_impresora">Nombre impresora Windows</label>

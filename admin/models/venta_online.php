@@ -576,9 +576,10 @@ class VentaOnline extends Sistema
     {
         $pat = joyeria_like_pattern($busqueda);
         $params = [];
+        $nombreCliente = joyeria_sql_nombre_completo('uc');
         $sql = "SELECT v.id_venta, v.fecha_venta, v.total, v.estado_pago, v.estado_entrega,
                        v.id_pago_externo, v.id_tienda_FK,
-                       COALESCE(CONCAT(uc.nombre, ' ', uc.primer_apellido), 'Cliente') AS cliente_nombre,
+                       COALESCE({$nombreCliente}, 'Cliente') AS cliente_nombre,
                        uc.correo AS cliente_correo,
                        t.nom_tienda,
                        (SELECT COUNT(*) FROM venta_detalle vd WHERE vd.id_venta_FK = v.id_venta) AS items_count
@@ -590,11 +591,10 @@ class VentaOnline extends Sistema
 
         if ($pat !== null) {
             $sql .= " AND (CAST(v.id_venta AS CHAR) LIKE :b1 OR uc.correo LIKE :b2
-                          OR uc.nombre LIKE :b3 OR uc.primer_apellido LIKE :b4)";
+                          OR {$nombreCliente} LIKE :b3)";
             $params[':b1'] = $pat;
             $params[':b2'] = $pat;
             $params[':b3'] = $pat;
-            $params[':b4'] = $pat;
         }
         if (!empty($filtros['estado_pago'])) {
             $sql .= " AND v.estado_pago = :ep";
