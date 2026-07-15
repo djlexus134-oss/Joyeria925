@@ -16,28 +16,31 @@ if ($bytes.Length -eq 0) {
     exit 1
 }
 
-# Trabajos atascados en el spooler (error/GDI/RAW a medias) reintentan y corrompen
-# el USB: la Epson imprime "?" (error de recepcion) y enciende el LED "!".
+# El Spooler es obligatorio para imprimir (RAW incluido). Si esta detenido,
+# lo arrancamos; sin el, WritePrinter siempre falla.
 try {
-    $printer = Get-Printer -Name $PrinterName -ErrorAction Stop
-    if ($printer.PrinterStatus -match 'Offline|Error|PaperJam|DoorOpen|NotAvailable') {
-        Write-Error ("Impresora en estado no listo: {0}" -f $printer.PrinterStatus)
-        exit 1
-    }
-    $jobs = @(Get-PrintJob -PrinterName $PrinterName -ErrorAction SilentlyContinue)
-    foreach ($job in $jobs) {
-        try {
-            Remove-PrintJob -InputObject $job -ErrorAction SilentlyContinue
-        } catch {
-            # ignorar
-        }
-    }
-    if ($jobs.Count -gt 0) {
-        Write-Output ("[print-raw] Se limpiaron {0} trabajo(s) previos en la cola de Windows." -f $jobs.Count)
+    $spooler = Get-Service -Name Spooler -ErrorAction Stop
+    if ($spooler.Status -ne 'Running') {
+        Start-Service Spooler -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
     }
 } catch {
-    Write-Error ("No se encontro la impresora '{0}': {1}" -f $PrinterName, $_.Exception.Message)
-    exit 1
+    # Si no podemos consultarlo, seguimos: WritePrinter dara el error real.
+}
+
+# Limpieza best-effort de trabajos atascados (reintentos corrompen el USB y
+# la Epson imprime "?" / enciende el LED "!"). NO abortamos si falla la consulta:
+# dejamos que WritePrinter sea la prueba real de impresion.
+try {
+    $jobs = @(Get-PrintJob -PrinterName $PrinterName -ErrorAction Stop)
+    foreach ($job in $jobs) {
+        try { Remove-PrintJob -InputObject $job -ErrorAction SilentlyContinue } catch { }
+    }
+    if ($jobs.Count -gt 0) {
+        Write-Output ("[print-raw] Se limpiaron {0} trabajo(s) previos en la cola." -f $jobs.Count)
+    }
+} catch {
+    Write-Output ("[print-raw] Aviso: no se pudo consultar la cola ({0}). Continuo con envio RAW." -f $_.Exception.Message)
 }
 
 Add-Type -TypeDefinition @"
