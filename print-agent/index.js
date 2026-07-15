@@ -69,10 +69,9 @@ process.on('SIGTERM', () => {
 });
 
 let configRaw = fs.readFileSync(configPath, 'utf8');
-if (configRaw.charCodeAt(0) === 0xfeff) {
-  configRaw = configRaw.slice(1);
-}
-const config = JSON.parse(configRaw.trim());
+// Quita BOM real y basura tipica de PowerShell (ï»¿) al editar config.json.
+configRaw = configRaw.replace(/^\uFEFF/, '').replace(/^ï»¿/, '').trim();
+const config = JSON.parse(configRaw);
 const serverUrl = resolveServerUrl(config);
 const cajaToken = String(config.cajaToken || '');
 const printerName = String(config.printerName || 'EPSON TM-T20 Receipt');

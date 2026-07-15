@@ -14,7 +14,8 @@ $ErrorActionPreference = 'Stop'
 
 $NodeExe     = 'C:\Program Files\nodejs\node.exe'
 $NssmExe     = 'C:\Tools\nssm\nssm.exe'
-$AgentDir    = 'D:\PrograWEB\src\Joyeria925\print-agent'
+# Ajusta esta ruta en la PC de caja (ej. C:\Joyeria\print-agent)
+$AgentDir    = 'C:\Joyeria\print-agent'
 $IndexJs     = Join-Path $AgentDir 'index.js'
 $ConfigJson  = Join-Path $AgentDir 'config.json'
 $ConfigEx    = Join-Path $AgentDir 'config.example.json'
@@ -67,6 +68,17 @@ if (-not (Test-Path -LiteralPath $ConfigJson)) {
     Write-Host "Se creo config.json desde el ejemplo." -ForegroundColor Yellow
     Write-Host "Editalo ahora (token, serverUrl, printerName) y guarda." -ForegroundColor Yellow
     Start-Process notepad.exe -ArgumentList $ConfigJson -Wait
+}
+
+# PowerShell "UTF8" agrega BOM y puede corromper el JSON para Node. Reescribe sin BOM.
+try {
+    $cfgObj = Get-Content -LiteralPath $ConfigJson -Encoding UTF8 -Raw | ConvertFrom-Json
+    $jsonClean = $cfgObj | ConvertTo-Json -Depth 10
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($ConfigJson, $jsonClean + "`r`n", $utf8NoBom)
+    Write-Host "config.json reescrito en UTF-8 sin BOM."
+} catch {
+    throw ("config.json invalido: {0}" -f $_.Exception.Message)
 }
 
 Write-Step "Quitando servicio anterior (si existe)"
