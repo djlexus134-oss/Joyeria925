@@ -39,7 +39,7 @@ npm run setup-python
 | `serverUrl` | URL base del admin. Usa `{localIp}` para la IPv4 DHCP actual, o `"auto"` (ver abajo) |
 | `serverUrlUseLocalhost` | Si `true`, usa `127.0.0.1` (Apache en la misma PC que el agente) |
 | `serverPort` / `serverPath` | Solo con `serverUrl`: `"auto"` |
-| `cajaToken` | `etiqueta_impresion_token` o `impresion_caja_token` |
+| `cajaToken` | Preferible: `etiqueta_impresion_token` (puede ser distinto al de tickets). Si ese campo esta vacio en el admin, el servidor acepta `impresion_caja_token` como respaldo |
 | `printerName` | Nombre exacto Argox en Windows (como en `test.py`) |
 | `pythonPath` | Opcional: ruta a `python.exe`. Vacio = `py -3` |
 | `destino` | Dejar `etiqueta` |
@@ -97,11 +97,57 @@ npm start
 
 ## Servicio Windows (NSSM)
 
+### Opcion recomendada: instalador automatico
+
+Abre PowerShell **como Administrador**, entra a la carpeta del agente y ejecuta:
+
 ```powershell
-nssm install JoyeriaLabelAgent "C:\Program Files\nodejs\node.exe" "D:\PrograWEB\src\Joyeria\print-agent-etiquetas\index.js"
-nssm set JoyeriaLabelAgent AppDirectory "D:\PrograWEB\src\Joyeria\print-agent-etiquetas"
+cd C:\Joyeria925\print-agent-etiquetas
+powershell -ExecutionPolicy Bypass -File .\install-service.ps1
+```
+
+El script hace todo: valida Node/NSSM/Python, corre `npm install`, instala las
+dependencias de Python (`pywin32`, `Pillow`), normaliza `config.json` (UTF-8 sin
+BOM) y (re)instala el servicio `JoyeriaLabelAgent` con arranque automatico,
+logs (`agent-out.log` / `agent-err.log`) y reinicio ante fallos.
+
+Parametros opcionales:
+
+```powershell
+# Fijar la impresora (si se omite, respeta el printerName de config.json)
+.\install-service.ps1 -PrinterName "ZDesigner ZD220-203dpi ZPL"
+
+# Rutas alternativas de Node / NSSM
+.\install-service.ps1 -NodeExe "C:\Program Files\nodejs\node.exe" -NssmExe "C:\Tools\nssm\nssm.exe"
+```
+
+> **Importante:** el agente de etiquetas hace `require('../print-agent/resolve-server-url')`.
+> En el equipo destino la carpeta `print-agent` (tickets) debe existir como
+> carpeta **hermana** de `print-agent-etiquetas`, aunque no uses el agente de tickets.
+
+### Opcion manual
+
+```powershell
+nssm install JoyeriaLabelAgent "C:\Program Files\nodejs\node.exe" "C:\Joyeria925\print-agent-etiquetas\index.js"
+nssm set JoyeriaLabelAgent AppDirectory "C:\Joyeria925\print-agent-etiquetas"
 nssm start JoyeriaLabelAgent
 ```
+
+### El servicio quedo deshabilitado / no arranca
+
+Si durante una solucion de problemas se deshabilito el servicio:
+
+```powershell
+# Ver estado y tipo de arranque
+nssm status JoyeriaLabelAgent
+Get-Service JoyeriaLabelAgent | Format-List Name,Status,StartType
+
+# Volver a habilitar arranque automatico y arrancar
+nssm set JoyeriaLabelAgent Start SERVICE_AUTO_START
+nssm start JoyeriaLabelAgent
+```
+
+O simplemente vuelve a ejecutar `install-service.ps1`, que lo reinstala desde cero.
 
 ## Problemas frecuentes
 

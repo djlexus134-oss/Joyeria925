@@ -198,9 +198,12 @@ async function fetchPending() {
     validateStatus: () => true,
   });
   if (response.status === 401) {
+    const apiMsg = response.data && response.data.error ? String(response.data.error) : '';
     throw new Error(
-      'Token invalido (destino=etiqueta). En el admin: deja VACIO etiqueta_impresion_token ' +
-        'o pon el mismo valor que impresion_caja_token y en config.json cajaToken.'
+      apiMsg ||
+        'Token invalido (destino=etiqueta). En el admin configura etiqueta_impresion_token ' +
+          '(puede ser DISTINTO al de tickets) y pon ese mismo valor en este config.json → cajaToken. ' +
+          'Solo si etiqueta_impresion_token esta vacio el servidor acepta impresion_caja_token como respaldo.'
     );
   }
   if (response.status >= 400) {

@@ -64,8 +64,9 @@
                    value="<?php echo (int) $valores['impresion_id_tienda_caja']; ?>">
         </div>
         <div class="form-group">
-            <label for="impresion_caja_token">Token agente (vacío = no cambiar)</label>
+            <label for="impresion_caja_token">Token agente tickets (vacío = no cambiar)</label>
             <input class="form-input" type="password" name="impresion_caja_token" id="impresion_caja_token" autocomplete="new-password" placeholder="********">
+            <small class="form-hint">Solo para <code>print-agent</code> (Epson). Independiente del token de etiquetas.</small>
         </div>
     </div>
     <div class="config-hub-checks">

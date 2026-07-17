@@ -276,7 +276,22 @@ try {
 
             if (!impresion_token_valido($config, $destino)) {
 
-                impresion_json_fail('Token de caja invalido.', 401);
+                if ($destino === 'etiqueta') {
+
+                    impresion_json_fail(
+                        'Token de etiquetas invalido. En el admin configura etiqueta_impresion_token '
+                        . '(independiente del de tickets) y usa ese mismo valor en print-agent-etiquetas/config.json. '
+                        . 'Si etiqueta_impresion_token esta vacio, el servidor acepta impresion_caja_token como respaldo.',
+                        401
+                    );
+
+                }
+
+                impresion_json_fail(
+                    'Token de tickets invalido. En el admin configura impresion_caja_token '
+                    . 'y usa ese mismo valor en print-agent/config.json (destino=ticket).',
+                    401
+                );
 
             }
 
@@ -556,7 +571,13 @@ try {
 
             if (!impresion_token_valido($config, $destino)) {
 
-                impresion_json_fail('Token de caja invalido.', 401);
+                if ($destino === 'etiqueta') {
+
+                    impresion_json_fail('Token de etiquetas invalido al confirmar.', 401);
+
+                }
+
+                impresion_json_fail('Token de tickets invalido al confirmar.', 401);
 
             }
 

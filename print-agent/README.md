@@ -36,7 +36,7 @@ Edita `config.json`:
 | `serverUrl` | URL base del admin. `http://{localIp}:8080/Joyeria/admin` se adapta a la IP DHCP |
 | `serverUrlUseLocalhost` | Si `true`, fuerza `127.0.0.1` (misma PC que Apache) |
 | `serverUrl` = `"auto"` | Construye URL con `serverPort` y `serverPath` |
-| `cajaToken` | Mismo valor que `impresion_caja_token` en configuracion de ticket |
+| `cajaToken` | Mismo valor que `impresion_caja_token` (token de tickets; independiente de `etiqueta_impresion_token`) |
 | `printerName` | Nombre exacto en Windows, ej. `EPSON TM-T20 Receipt` |
 | `pollIntervalMs` | Intervalo de consulta (1500 recomendado) |
 

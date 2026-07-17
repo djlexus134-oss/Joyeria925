@@ -70,8 +70,13 @@
                    value="<?php echo htmlspecialchars((string) $valores['etiqueta_offset_y'], ENT_QUOTES, 'UTF-8'); ?>">
         </div>
         <div class="form-group">
-            <label for="etiqueta_impresion_token">Token agente (vacío = no cambiar)</label>
+            <label for="etiqueta_impresion_token">Token agente etiquetas (vacío = no cambiar)</label>
             <input class="form-input" type="password" name="etiqueta_impresion_token" id="etiqueta_impresion_token" autocomplete="new-password" placeholder="********">
+            <small class="form-hint">
+                Solo para <code>print-agent-etiquetas</code>. Puede ser distinto al de tickets.
+                Si lo dejas sin configurar nunca, el servidor usa el token de tickets como respaldo
+                (por eso parece que “tienen que ser iguales”).
+            </small>
         </div>
     </div>
 </section>

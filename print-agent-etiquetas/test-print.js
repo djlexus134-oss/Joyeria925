@@ -32,7 +32,21 @@ function buildTestSampleWin32() {
   );
 }
 
+/** Etiqueta de prueba ZPL para Zebra (ZD220, etc.). 60x10mm a 203dpi = 480x80 dots. */
+function buildTestSampleZpl() {
+  return (
+    '^XA' +
+    '^PW480' +
+    '^LL80' +
+    '^FO20,20^A0N,30,30^FDPRUEBA ZPL OK^FS' +
+    '^XZ'
+  );
+}
+
 function buildTestSample(style) {
+  if (style === 'zpl') {
+    return buildTestSampleZpl();
+  }
   if (style === 'ppla_win32' || style === 'win32') {
     return buildTestSampleWin32();
   }

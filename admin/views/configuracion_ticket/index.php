@@ -66,8 +66,9 @@
                        value="<?php echo (int) ($valores['impresion_id_tienda_caja'] ?? 0); ?>">
             </div>
             <div class="form-group">
-                <label for="impresion_caja_token">Token agente (dejar vacío para no cambiar)</label>
+                <label for="impresion_caja_token">Token agente tickets (dejar vacío para no cambiar)</label>
                 <input class="form-input" type="password" name="impresion_caja_token" id="impresion_caja_token" autocomplete="new-password" placeholder="********">
+                <small class="form-hint">Solo <code>print-agent</code> (tickets). Independiente del de etiquetas.</small>
             </div>
         </div>
 
@@ -160,6 +161,10 @@
             <div class="form-group">
                 <label for="etiqueta_impresion_token">Token agente etiquetas (vacío = no cambiar)</label>
                 <input class="form-input" type="password" name="etiqueta_impresion_token" id="etiqueta_impresion_token" autocomplete="new-password" placeholder="********">
+                <small class="form-hint">
+                    Solo <code>print-agent-etiquetas</code>. Puede ser distinto al de tickets.
+                    Si nunca lo configuras, el servidor acepta el token de tickets como respaldo.
+                </small>
             </div>
         </div>
 

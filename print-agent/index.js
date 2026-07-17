@@ -141,14 +141,19 @@ function printRaw(buffer) {
 }
 
 async function fetchPending() {
-  const url = serverUrl + '/api/impresion.php?accion=pendientes';
+  // destino=ticket: solo trabajos de ticket; token = impresion_caja_token (independiente de etiquetas).
+  const url = serverUrl + '/api/impresion.php?accion=pendientes&destino=ticket';
   const response = await axios.get(url, {
     headers: { 'X-Caja-Token': cajaToken },
     timeout: 15000,
     validateStatus: () => true,
   });
   if (response.status === 401) {
-    throw new Error('Token de caja invalido. Revisa impresion_caja_token en el admin.');
+    const apiMsg = response.data && response.data.error ? String(response.data.error) : '';
+    throw new Error(
+      apiMsg ||
+        'Token de tickets invalido. En el admin: impresion_caja_token. En este PC: print-agent/config.json → cajaToken.'
+    );
   }
   if (response.status >= 400) {
     const msg = response.data && response.data.error ? response.data.error : 'Error HTTP ' + response.status;
@@ -158,7 +163,7 @@ async function fetchPending() {
 }
 
 async function confirmJob(idCola, ok, mensaje) {
-  const url = serverUrl + '/api/impresion.php?accion=confirmar';
+  const url = serverUrl + '/api/impresion.php?accion=confirmar&destino=ticket';
   await axios.post(
     url,
     { id_cola_impresion: idCola, ok: ok, mensaje: mensaje || '' },
